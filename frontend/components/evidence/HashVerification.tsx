@@ -77,23 +77,23 @@ export function HashVerification({ evidence, onVerify, className = '' }: HashVer
     <div className={`space-y-6 ${className}`}>
       {/* ─── LARGE VERIFICATION STATUS CARD (Section 33) ─── */}
       <div
-        className={`p-6 rounded-[12px] border transition-all ${
+        className={`p-6 rounded-none border transition-all ${
           isVerified
             ? 'bg-[#39D98A]/10 border-[#39D98A]/40'
             : isFailed
-            ? 'bg-[#FF5C67]/10 border-[#FF5C67]/50'
-            : 'bg-[#18222C] border-[#263442]'
+            ? 'bg-red-500/10 border-[#FF5C67]/50'
+            : 'bg-muted border-border'
         }`}
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div
-              className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
+              className={`w-12 h-12 rounded-none flex items-center justify-center flex-shrink-0 ${
                 isVerified
-                  ? 'bg-[#39D98A]/20 text-[#39D98A]'
+                  ? 'bg-[#39D98A]/20 text-green-500'
                   : isFailed
-                  ? 'bg-[#FF5C67]/20 text-[#FF5C67]'
-                  : 'bg-[#141C24] text-[#F4C95D]'
+                  ? 'bg-red-500/20 text-red-500'
+                  : 'bg-card text-[#F4C95D]'
               }`}
             >
               {isVerified ? (
@@ -106,15 +106,15 @@ export function HashVerification({ evidence, onVerify, className = '' }: HashVer
             </div>
 
             <div>
-              <span className="text-[10px] uppercase font-bold tracking-[0.08em] text-[#A7B2BD] block">
+              <span className="text-[10px] uppercase font-bold tracking-[0.08em] text-muted-foreground block">
                 Cryptographic Audit Status
               </span>
               <h2
                 className={`text-lg sm:text-xl font-bold tracking-tight mt-0.5 ${
                   isVerified
-                    ? 'text-[#39D98A]'
+                    ? 'text-green-500'
                     : isFailed
-                    ? 'text-[#FF5C67]'
+                    ? 'text-red-500'
                     : 'text-[#F4C95D]'
                 }`}
               >
@@ -130,7 +130,7 @@ export function HashVerification({ evidence, onVerify, className = '' }: HashVer
           <button
             onClick={handleVerify}
             disabled={isVerifying}
-            className="px-5 py-2.5 rounded-[8px] bg-[#37B9FF] hover:bg-[#37B9FF]/90 text-[#071018] font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-60"
+            className="px-5 py-2.5 rounded-none bg-accent hover:bg-accent/90 text-[#071018] font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-60"
           >
             {isVerifying ? (
               <>
@@ -150,49 +150,49 @@ export function HashVerification({ evidence, onVerify, className = '' }: HashVer
       {/* ─── DUAL HASH COMPARISON CONSOLE ─── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Current File Hash */}
-        <div className="bg-[#141C24] border border-[#263442] rounded-[10px] p-5 space-y-2">
+        <div className="bg-card border border-border rounded-none p-5 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-[#A7B2BD]">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Current File SHA-256 Hash
             </span>
             <button
               onClick={() => handleCopy(currentHash, 'current')}
-              className="text-[11px] text-[#37B9FF] hover:underline flex items-center gap-1 font-mono"
+              className="text-[11px] text-accent hover:underline flex items-center gap-1 font-mono"
             >
               {copiedKey === 'current' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
               Copy
             </button>
           </div>
-          <div className="p-3 rounded-[6px] bg-[#0F151C] border border-[#263442] font-mono text-xs text-[#F3F6F8] break-all select-all">
+          <div className="p-3 rounded-none bg-[#0F151C] border border-border font-mono text-xs text-foreground break-all select-all">
             {currentHash}
           </div>
-          <p className="text-[11px] text-[#6E7B87]">
+          <p className="text-[11px] text-muted-foreground">
             Recalculated in real-time from encrypted snapshot storage binary.
           </p>
         </div>
 
         {/* Blockchain Recorded Hash */}
-        <div className="bg-[#141C24] border border-[#263442] rounded-[10px] p-5 space-y-2">
+        <div className="bg-card border border-border rounded-none p-5 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-[#A7B2BD]">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Ledger Recorded Hash (Block #{evidence.blockNumber})
             </span>
             <button
               onClick={() => handleCopy(blockchainHash, 'blockchain')}
-              className="text-[11px] text-[#37B9FF] hover:underline flex items-center gap-1 font-mono"
+              className="text-[11px] text-accent hover:underline flex items-center gap-1 font-mono"
             >
               {copiedKey === 'blockchain' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
               Copy
             </button>
           </div>
-          <div className="p-3 rounded-[6px] bg-[#0F151C] border border-[#263442] font-mono text-xs text-[#F3F6F8] break-all select-all">
+          <div className="p-3 rounded-none bg-[#0F151C] border border-border font-mono text-xs text-foreground break-all select-all">
             {blockchainHash}
           </div>
           <div className="flex items-center justify-between text-[11px]">
-            <span className="text-[#6E7B87]">Hyperledger Fabric Immutable Block</span>
+            <span className="text-muted-foreground">Hyperledger Fabric Immutable Block</span>
             <span
               className={`font-mono font-bold ${
-                isVerified ? 'text-[#39D98A]' : 'text-[#FF5C67]'
+                isVerified ? 'text-green-500' : 'text-red-500'
               }`}
             >
               {isVerified ? 'EXACT MATCH' : 'MISMATCH DETECTED'}

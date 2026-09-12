@@ -131,6 +131,7 @@ export class CameraService {
     streamUrl?: string;
     rtspUsername?: string;
     rtspPassword?: string;
+    sourceType?: 'RTSP' | 'VIDEO';
   }) {
     // Resolve BOP
     const bop = await prisma.bop.findFirst({ where: { OR: [{ code: data.bopCode }, { id: data.bopCode }] } });
@@ -159,6 +160,7 @@ export class CameraService {
         streamUrl: data.streamUrl,
         rtspUsernameEncrypted,
         rtspPasswordEncrypted,
+        sourceType: data.sourceType || 'RTSP',
       },
       include: { bop: { select: { code: true } } },
     });

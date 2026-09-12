@@ -79,16 +79,6 @@ DEFAULT_BOP_ID = CONFIG.get("bop_id", "BOP-12")
 FORWARD_TO_BACKEND = os.getenv("FORWARD_TO_BACKEND", "true").lower() in {"1", "true", "yes"}
 
 
-class SimulateIntrusionRequest(BaseModel):
-	camera_id: str = Field(default=DEFAULT_CAMERA_ID)
-	bop_id: str = Field(default=DEFAULT_BOP_ID)
-	event_type: str = Field(default="INTRUSION")
-	object_type: str = Field(default="PERSON")
-	confidence: float = Field(default=0.96, ge=0, le=1)
-	track_id: int = Field(default=72)
-	zone: str = Field(default="NORTH_FENCE")
-	bbox: list[float] = Field(default=[421, 183, 523, 462])
-
 
 class CameraZoneRequest(BaseModel):
 	name: str
@@ -206,27 +196,6 @@ async def analyze_video(file: UploadFile = File(...), camera_id: str = "CAM_001"
 def events() -> dict[str, Any]:
 	return {"camera_id": event_manager.camera_id, "events": event_manager.events}
 
-
-@app.post("/simulate/intrusion")
-def simulate_intrusion(body: SimulateIntrusionRequest) -> dict[str, Any]:
-	"""Demo endpoint: inject a synthetic INTRUSION into the Node.js backend."""
-	timestamp = datetime.now(timezone.utc).isoformat()
-	raw_event = {
-		"event_type": body.event_type,
-		"object_type": body.object_type,
-		"track_id": body.track_id,
-		"confidence": body.confidence,
-		"bbox": body.bbox,
-		"metadata": {"zone": body.zone},
-		"timestamp": timestamp,
-	}
-	backend = forward_events(
-		[raw_event],
-		camera_id=body.camera_id,
-		bop_id=body.bop_id,
-		timestamp=timestamp,
-	)
-	return {"simulated": raw_event, "backend": backend}
 
 
 @app.get("/cameras")

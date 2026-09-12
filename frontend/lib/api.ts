@@ -5,22 +5,94 @@ import type { Evidence } from '@/types/evidence';
 import type { WatchlistPerson, WatchlistVehicle } from '@/types/watchlist';
 import type { SystemHealth, User } from '@/types/system';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
-function getToken(): string {
+export function getToken(): string {
   if (typeof window === 'undefined') return '';
-  return localStorage.getItem('ibvap_token') || '';
+  return localStorage.getItem('ibvap_token') || localStorage.getItem('token') || '';
+}
+
+function getRefreshToken(): string {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem('ibvap_refresh_token') || '';
+}
+
+export function getAuthHeaders(): Record<string, string> {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function mergeHeaders(options: RequestInit, defaults: Record<string, string>) {
+  return {
+    ...defaults,
+    ...getAuthHeaders(),
+    ...Object.fromEntries(new Headers(options.headers).entries()),
+  };
+}
+
+let refreshPromise: Promise<boolean> | null = null;
+
+export async function refreshAccessToken(): Promise<boolean> {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) return false;
+
+    try {
+      const res = await fetch(`${API_BASE}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.success) return false;
+
+      localStorage.setItem('ibvap_token', data.data.accessToken);
+      if (data.data.refreshToken) {
+        localStorage.setItem('ibvap_refresh_token', data.data.refreshToken);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  })().finally(() => {
+    refreshPromise = null;
+  });
+
+  return refreshPromise;
+}
+
+export async function fetchWithAuth(endpoint: string, options: RequestInit = {}, retry = true): Promise<Response> {
+  const res = await fetch(`${API_BASE}${endpoint}`, {
+    ...options,
+    headers: mergeHeaders(options, {}),
+  });
+
+  if (res.status === 401 && retry && await refreshAccessToken()) {
+    return fetchWithAuth(endpoint, options, false);
+  }
+
+  return res;
 }
 
 async function fetchApi<T = unknown>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = getToken();
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(options.headers as Record<string, string> | undefined),
+    ...mergeHeaders(options, { 'Content-Type': 'application/json' }),
   };
 
-  const res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
+  let res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
+  if (res.status === 401 && await refreshAccessToken()) {
+    res = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers: {
+        ...headers,
+        ...getAuthHeaders(),
+      },
+    });
+  }
+
   const data = await res.json();
 
   if (!res.ok || !data.success) {
@@ -98,6 +170,7 @@ export async function login(email: string, password: string) {
   }
   if (typeof window !== 'undefined') {
     localStorage.setItem('ibvap_token', data.data.accessToken);
+    localStorage.setItem('ibvap_refresh_token', data.data.refreshToken);
   }
   return data.data;
 }

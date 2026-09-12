@@ -25,6 +25,7 @@ export const createCameraSchema = z.object({
   streamUrl: streamUrlSchema.optional(),
   rtspUsername: z.string().optional(),
   rtspPassword: z.string().optional(),
+  sourceType: z.enum(['RTSP', 'VIDEO']).optional(),
 });
 
 export const updateCameraSchema = z.object({

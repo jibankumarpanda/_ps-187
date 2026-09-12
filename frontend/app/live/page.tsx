@@ -56,24 +56,24 @@ export default function LiveSurveillancePage() {
   return (
     <div className="space-y-4 flex flex-col min-h-full">
       {/* Surveillance Control Room Toolbar (Section 23) */}
-      <div className="bg-[#141C24] border border-[#263442] rounded-[10px] p-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-card border border-border rounded-none p-4 flex flex-wrap items-center justify-between gap-3">
         {/* Left filters */}
         <div className="flex items-center gap-2.5 flex-wrap">
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6E7B87]" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search camera..."
-              className="bg-[#0F151C] border border-[#263442] rounded-[7px] pl-8 pr-3 h-8 text-xs text-[#F3F6F8] placeholder:text-[#677480] focus:border-[#37B9FF] focus:outline-none"
+              className="bg-[#0F151C] border border-border rounded-none pl-8 pr-3 h-8 text-xs text-foreground placeholder:text-[#677480] focus:border-[#37B9FF] focus:outline-none"
             />
           </div>
 
           <select
             value={bopFilter}
             onChange={(e) => setBopFilter(e.target.value)}
-            className="bg-[#0F151C] border border-[#263442] rounded-[7px] px-2.5 h-8 text-xs text-[#F3F6F8] focus:border-[#37B9FF] focus:outline-none cursor-pointer"
+            className="bg-[#0F151C] border border-border rounded-none px-2.5 h-8 text-xs text-foreground focus:border-[#37B9FF] focus:outline-none cursor-pointer"
           >
             <option value="">All Sector BOPs</option>
             <option value="BOP-12">BOP-12</option>
@@ -86,7 +86,7 @@ export default function LiveSurveillancePage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-[#0F151C] border border-[#263442] rounded-[7px] px-2.5 h-8 text-xs text-[#F3F6F8] focus:border-[#37B9FF] focus:outline-none cursor-pointer"
+            className="bg-[#0F151C] border border-border rounded-none px-2.5 h-8 text-xs text-foreground focus:border-[#37B9FF] focus:outline-none cursor-pointer"
           >
             <option value="">All Network States</option>
             <option value="ONLINE">Online Only</option>
@@ -98,15 +98,15 @@ export default function LiveSurveillancePage() {
         {/* Right Density & Actions */}
         <div className="flex items-center gap-2">
           {/* Grid Density Switcher */}
-          <div className="flex items-center bg-[#0F151C] border border-[#263442] rounded-[7px] p-0.5">
+          <div className="flex items-center bg-[#0F151C] border border-border rounded-none p-0.5">
             {(['2x2', '3x3', '4x4'] as const).map((density) => (
               <button
                 key={density}
                 onClick={() => setGridDensity(density)}
-                className={`px-2.5 py-1 text-xs font-mono font-bold rounded-[5px] transition-colors ${
+                className={`px-2.5 py-1 text-xs font-mono font-bold rounded-none transition-colors ${
                   gridDensity === density
-                    ? 'bg-[#37B9FF] text-[#071018]'
-                    : 'text-[#8D99A5] hover:text-[#F3F6F8]'
+                    ? 'bg-accent text-[#071018]'
+                    : 'text-[#8D99A5] hover:text-foreground'
                 }`}
               >
                 {density}
@@ -123,10 +123,10 @@ export default function LiveSurveillancePage() {
                 type: 'info',
               });
             }}
-            className={`p-2 rounded-[7px] border transition-colors ${
+            className={`p-2 rounded-none border transition-colors ${
               isAlertsMuted
-                ? 'bg-[#FF5C67]/15 border-[#FF5C67]/30 text-[#FF5C67]'
-                : 'bg-[#18222C] border-[#344454] text-[#A7B2BD] hover:text-[#F3F6F8]'
+                ? 'bg-red-500/15 border-[#FF5C67]/30 text-red-500'
+                : 'bg-muted border-border text-muted-foreground hover:text-foreground'
             }`}
             title={isAlertsMuted ? 'Unmute Alarms' : 'Mute Alarms'}
           >
@@ -135,7 +135,7 @@ export default function LiveSurveillancePage() {
 
           <button
             onClick={refetch}
-            className="p-2 rounded-[7px] bg-[#18222C] hover:bg-[#1E2A35] border border-[#344454] text-[#A7B2BD] hover:text-[#F3F6F8] transition-colors"
+            className="p-2 rounded-none bg-muted hover:bg-muted border border-border text-muted-foreground hover:text-foreground transition-colors"
             title="Refresh Camera Streams"
           >
             <RefreshCw className="w-4 h-4" />
@@ -167,7 +167,7 @@ export default function LiveSurveillancePage() {
         {Array.from({ length: Math.max(0, densityCount - displayedCameras.length) }).map((_, i) => (
           <div
             key={`placeholder-${i}`}
-            className="bg-[#05080B] border border-[#263442] border-dashed rounded-[8px] flex flex-col items-center justify-center text-[#4E5A64]"
+            className="bg-[#05080B] border border-border border-dashed rounded-none flex flex-col items-center justify-center text-[#4E5A64]"
             style={{ aspectRatio: '16/9' }}
           >
             <MonitorPlay className="w-8 h-8 mb-2 opacity-40" />

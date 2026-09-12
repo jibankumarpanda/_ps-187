@@ -41,3 +41,5 @@ This document outlines the procedures to start the various components of the IBV
 1. Navigate to the chaincode directory: `cd chaincode/ibvap-evidence-chaincode`
 2. Ensure you have a local Fabric test network running.
 3. Deploy the chaincode following standard Fabric deployment scripts.
+
+npm run prisma:seed

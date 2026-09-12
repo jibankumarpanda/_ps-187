@@ -37,7 +37,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
 
   if (isLoading) {
     return (
-      <div className="p-8 text-center text-xs text-[#A7B2BD] flex items-center justify-center gap-2">
+      <div className="p-8 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
         <span className="w-4 h-4 border-2 border-[#37B9FF] border-t-transparent rounded-full animate-spin" />
         Retrieving forensic event telemetry and chain of custody...
       </div>
@@ -47,11 +47,11 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
   if (!event) {
     return (
       <div className="p-8 text-center space-y-3">
-        <h2 className="text-base font-bold text-[#FF5C67]">Event Not Found</h2>
-        <p className="text-xs text-[#A7B2BD]">No recorded event exists for ID {params.id}.</p>
+        <h2 className="text-base font-bold text-red-500">Event Not Found</h2>
+        <p className="text-xs text-muted-foreground">No recorded event exists for ID {params.id}.</p>
         <Link
           href="/events"
-          className="inline-block px-4 py-2 bg-[#18222C] text-xs font-semibold rounded-[7px] text-[#F3F6F8]"
+          className="inline-block px-4 py-2 bg-muted text-xs font-semibold rounded-none text-foreground"
         >
           Return to Events Feed
         </Link>
@@ -75,7 +75,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
             <SeverityBadge severity={event.severity} />
             <Link
               href={`/investigation?eventId=${event.eventId}`}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#37B9FF] hover:bg-[#37B9FF]/90 text-[#071018] rounded-[7px] text-xs font-bold transition-all shadow-lg"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-accent hover:bg-accent/90 text-[#071018] rounded-none text-xs font-bold transition-all shadow-lg"
             >
               <Search className="w-4 h-4" />
               Open Investigation
@@ -88,7 +88,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
         {/* Left Column: Forensic Snapshot Visual & Key Attributes */}
         <div className="lg:col-span-8 space-y-5">
           {/* Primary Evidence Snapshot Frame (Section 30) */}
-          <div className="relative bg-[#05080B] border border-[#263442] rounded-[10px] overflow-hidden shadow-2xl">
+          <div className="relative bg-[#05080B] border border-border rounded-none overflow-hidden shadow-2xl">
             <div
               className="relative w-full flex items-center justify-center bg-[#081017] overflow-hidden"
               style={{ aspectRatio: '16/9' }}
@@ -108,10 +108,10 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
 
               {/* Bounding Box Simulation */}
               <div
-                className="absolute border-2 border-[#FF5C67] bg-[#FF5C67]/20 flex flex-col justify-start"
+                className="absolute border-2 border-[#FF5C67] bg-red-500/20 flex flex-col justify-start"
                 style={{ top: '30%', left: '42%', width: '16%', height: '45%' }}
               >
-                <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-[#FF5C67] text-[#071018] w-max">
+                <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-red-500 text-[#071018] w-max">
                   {event.objectType} {(event.confidence * 100).toFixed(0)}% TRK-{event.trackId}
                 </span>
               </div>
@@ -125,41 +125,41 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
 
           {/* Detailed Attributes Grid (Section 30) */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="p-3.5 bg-[#141C24] border border-[#263442] rounded-[8px]">
-              <div className="text-[10px] uppercase font-bold text-[#6E7B87] tracking-wider mb-1 flex items-center gap-1">
-                <Target className="w-3.5 h-3.5 text-[#37B9FF]" /> Track Identity
+            <div className="p-3.5 bg-card border border-border rounded-none">
+              <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1 flex items-center gap-1">
+                <Target className="w-3.5 h-3.5 text-accent" /> Track Identity
               </div>
-              <div className="text-base font-bold font-mono text-[#F3F6F8]">TRK-{event.trackId}</div>
-              <div className="text-[10px] text-[#A7B2BD] mt-0.5">Confidence: {(event.confidence * 100).toFixed(0)}%</div>
+              <div className="text-base font-bold font-mono text-foreground">TRK-{event.trackId}</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">Confidence: {(event.confidence * 100).toFixed(0)}%</div>
             </div>
 
-            <div className="p-3.5 bg-[#141C24] border border-[#263442] rounded-[8px]">
-              <div className="text-[10px] uppercase font-bold text-[#6E7B87] tracking-wider mb-1 flex items-center gap-1">
-                <ShieldAlert className="w-3.5 h-3.5 text-[#FF5C67]" /> Threat Score
+            <div className="p-3.5 bg-card border border-border rounded-none">
+              <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1 flex items-center gap-1">
+                <ShieldAlert className="w-3.5 h-3.5 text-red-500" /> Threat Score
               </div>
-              <div className="text-base font-bold font-mono text-[#FF5C67]">{event.threatScore} / 100</div>
-              <div className="text-[10px] text-[#A7B2BD] mt-0.5">Automated AI Assessment</div>
+              <div className="text-base font-bold font-mono text-red-500">{event.threatScore} / 100</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">Automated AI Assessment</div>
             </div>
 
-            <div className="p-3.5 bg-[#141C24] border border-[#263442] rounded-[8px]">
-              <div className="text-[10px] uppercase font-bold text-[#6E7B87] tracking-wider mb-1 flex items-center gap-1">
+            <div className="p-3.5 bg-card border border-border rounded-none">
+              <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1 flex items-center gap-1">
                 <MapPin className="w-3.5 h-3.5 text-[#F4C95D]" /> Monitored Zone
               </div>
-              <div className="text-base font-bold font-mono text-[#F3F6F8] truncate">{event.zone}</div>
-              <div className="text-[10px] text-[#A7B2BD] mt-0.5">BOP: {event.bopId}</div>
+              <div className="text-base font-bold font-mono text-foreground truncate">{event.zone}</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">BOP: {event.bopId}</div>
             </div>
 
-            <div className="p-3.5 bg-[#141C24] border border-[#263442] rounded-[8px]">
-              <div className="text-[10px] uppercase font-bold text-[#6E7B87] tracking-wider mb-1 flex items-center gap-1">
-                <FileCheck className="w-3.5 h-3.5 text-[#39D98A]" /> Blockchain Proof
+            <div className="p-3.5 bg-card border border-border rounded-none">
+              <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1 flex items-center gap-1">
+                <FileCheck className="w-3.5 h-3.5 text-green-500" /> Blockchain Proof
               </div>
               <Link
                 href={`/evidence/${event.evidenceId}`}
-                className="text-base font-bold font-mono text-[#37B9FF] hover:underline block truncate"
+                className="text-base font-bold font-mono text-accent hover:underline block truncate"
               >
                 {event.evidenceId}
               </Link>
-              <div className="text-[10px] text-[#39D98A] mt-0.5 font-mono">Verify Hash →</div>
+              <div className="text-[10px] text-green-500 mt-0.5 font-mono">Verify Hash →</div>
             </div>
           </div>
         </div>

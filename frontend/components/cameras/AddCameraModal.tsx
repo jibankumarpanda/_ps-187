@@ -70,7 +70,7 @@ export function AddCameraModal({ isOpen, onClose, onAdd }: AddCameraModalProps) 
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="px-4 py-2 text-xs font-semibold text-[#D8E0E6] bg-[#18222C] border border-[#344454] rounded-[7px] hover:bg-[#1E2A35] transition-colors"
+            className="px-4 py-2 text-xs font-semibold text-[#D8E0E6] bg-muted border border-border rounded-none hover:bg-muted transition-colors"
           >
             Cancel
           </button>
@@ -78,7 +78,7 @@ export function AddCameraModal({ isOpen, onClose, onAdd }: AddCameraModalProps) 
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="px-4 py-2 text-xs font-bold text-[#071018] bg-[#37B9FF] hover:bg-[#37B9FF]/90 rounded-[7px] transition-colors flex items-center gap-1.5"
+            className="px-4 py-2 text-xs font-bold text-[#071018] bg-accent hover:bg-accent/90 rounded-none transition-colors flex items-center gap-1.5"
           >
             {isSubmitting ? (
               <>
@@ -95,33 +95,33 @@ export function AddCameraModal({ isOpen, onClose, onAdd }: AddCameraModalProps) 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-semibold text-[#A7B2BD] block mb-1">Camera ID</label>
+            <label className="text-xs font-semibold text-muted-foreground block mb-1">Camera ID</label>
             <input
               type="text"
               required
               value={formData.cameraCode}
               onChange={(e) => setFormData({ ...formData, cameraCode: e.target.value.toUpperCase() })}
               placeholder="e.g. BOP12-CAM09"
-              className="w-full bg-[#0F151C] border border-[#2B3947] rounded-[7px] px-3 h-10 text-xs text-[#F3F6F8] focus:border-[#37B9FF] focus:outline-none font-mono"
+              className="w-full bg-[#0F151C] border border-[#2B3947] rounded-none px-3 h-10 text-xs text-foreground focus:border-[#37B9FF] focus:outline-none font-mono"
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-[#A7B2BD] block mb-1">Camera Name</label>
+            <label className="text-xs font-semibold text-muted-foreground block mb-1">Camera Name</label>
             <input
               type="text"
               required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="e.g. North Fence Cam 09"
-              className="w-full bg-[#0F151C] border border-[#2B3947] rounded-[7px] px-3 h-10 text-xs text-[#F3F6F8] focus:border-[#37B9FF] focus:outline-none"
+              className="w-full bg-[#0F151C] border border-[#2B3947] rounded-none px-3 h-10 text-xs text-foreground focus:border-[#37B9FF] focus:outline-none"
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-[#A7B2BD] block mb-1">Border Outpost (BOP)</label>
+            <label className="text-xs font-semibold text-muted-foreground block mb-1">Border Outpost (BOP)</label>
             <select
               value={formData.bopId}
               onChange={(e) => setFormData({ ...formData, bopId: e.target.value })}
-              className="w-full bg-[#0F151C] border border-[#2B3947] rounded-[7px] px-3 h-10 text-xs text-[#F3F6F8] focus:border-[#37B9FF] focus:outline-none cursor-pointer"
+              className="w-full bg-[#0F151C] border border-[#2B3947] rounded-none px-3 h-10 text-xs text-foreground focus:border-[#37B9FF] focus:outline-none cursor-pointer"
             >
               <option value="BOP-12">BOP-12 (North Sector)</option>
               <option value="BOP-18">BOP-18 (East Sector)</option>
@@ -133,24 +133,24 @@ export function AddCameraModal({ isOpen, onClose, onAdd }: AddCameraModalProps) 
         </div>
 
         <div>
-          <label className="text-xs font-semibold text-[#A7B2BD] block mb-1">Physical Sector / Location</label>
+          <label className="text-xs font-semibold text-muted-foreground block mb-1">Physical Sector / Location</label>
           <input
             type="text"
             required
             value={formData.location}
             onChange={(e) => setFormData({ ...formData, location: e.target.value })}
             placeholder="e.g. Sector 4 East River Crossing"
-            className="w-full bg-[#0F151C] border border-[#2B3947] rounded-[7px] px-3 h-10 text-xs text-[#F3F6F8] focus:border-[#37B9FF] focus:outline-none"
+            className="w-full bg-[#0F151C] border border-[#2B3947] rounded-none px-3 h-10 text-xs text-foreground focus:border-[#37B9FF] focus:outline-none"
           />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-semibold text-[#A7B2BD] block mb-1">Resolution</label>
+            <label className="text-xs font-semibold text-muted-foreground block mb-1">Resolution</label>
             <select
               value={formData.resolution}
               onChange={(e) => setFormData({ ...formData, resolution: e.target.value })}
-              className="w-full bg-[#0F151C] border border-[#2B3947] rounded-[7px] px-3 h-10 text-xs text-[#F3F6F8] focus:border-[#37B9FF] focus:outline-none cursor-pointer"
+              className="w-full bg-[#0F151C] border border-[#2B3947] rounded-none px-3 h-10 text-xs text-foreground focus:border-[#37B9FF] focus:outline-none cursor-pointer"
             >
               <option value="1920x1080">1080p FHD (1920x1080)</option>
               <option value="2560x1440">2K QHD (2560x1440)</option>
@@ -161,36 +161,36 @@ export function AddCameraModal({ isOpen, onClose, onAdd }: AddCameraModalProps) 
         </div>
 
         <div>
-          <label className="text-xs font-semibold text-[#A7B2BD] block mb-1">RTSP or NVR Stream URL</label>
+          <label className="text-xs font-semibold text-muted-foreground block mb-1">RTSP or NVR Stream URL</label>
           <input
             type="text"
             required
             value={formData.streamUrl}
             onChange={(e) => setFormData({ ...formData, streamUrl: e.target.value })}
             placeholder="rtsp://camera-host:554/stream"
-            className="w-full bg-[#0F151C] border border-[#2B3947] rounded-[7px] px-3 h-10 text-xs text-[#F3F6F8] focus:border-[#37B9FF] focus:outline-none font-mono"
+            className="w-full bg-[#0F151C] border border-[#2B3947] rounded-none px-3 h-10 text-xs text-foreground focus:border-[#37B9FF] focus:outline-none font-mono"
           />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-semibold text-[#A7B2BD] block mb-1">Camera Username</label>
+            <label className="text-xs font-semibold text-muted-foreground block mb-1">Camera Username</label>
             <input
               type="text"
               autoComplete="off"
               value={formData.rtspUsername}
               onChange={(e) => setFormData({ ...formData, rtspUsername: e.target.value })}
-              className="w-full bg-[#0F151C] border border-[#2B3947] rounded-[7px] px-3 h-10 text-xs text-[#F3F6F8] focus:border-[#37B9FF] focus:outline-none"
+              className="w-full bg-[#0F151C] border border-[#2B3947] rounded-none px-3 h-10 text-xs text-foreground focus:border-[#37B9FF] focus:outline-none"
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-[#A7B2BD] block mb-1">Camera Password</label>
+            <label className="text-xs font-semibold text-muted-foreground block mb-1">Camera Password</label>
             <input
               type="password"
               autoComplete="new-password"
               value={formData.rtspPassword}
               onChange={(e) => setFormData({ ...formData, rtspPassword: e.target.value })}
-              className="w-full bg-[#0F151C] border border-[#2B3947] rounded-[7px] px-3 h-10 text-xs text-[#F3F6F8] focus:border-[#37B9FF] focus:outline-none"
+              className="w-full bg-[#0F151C] border border-[#2B3947] rounded-none px-3 h-10 text-xs text-foreground focus:border-[#37B9FF] focus:outline-none"
             />
           </div>
         </div>

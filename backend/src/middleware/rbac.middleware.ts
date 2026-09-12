@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { UserRole } from '@prisma/client';
 import { Permission, hasPermission } from '../config/permissions';
 import { AppError } from '../utils/app-error';
+import { prisma } from '../config/database';
 
 /**
  * Require specific role(s).
@@ -58,26 +59,39 @@ export function authorize() {
  */
 export function requireBopAccess(getBopId: (req: Request) => string | null | undefined | Promise<string | null | undefined>) {
   return async (req: Request, _res: Response, next: NextFunction) => {
-    if (!req.user) {
-      return next(AppError.unauthorized('Authentication required'));
+    try {
+      if (!req.user) {
+        return next(AppError.unauthorized('Authentication required'));
+      }
+
+      const role = req.user.role as UserRole;
+
+      // SUPER_ADMIN and COMMANDER can access all BOPs
+      if (role === 'SUPER_ADMIN' || role === 'COMMANDER') {
+        return next();
+      }
+
+      const requestedBopId = await getBopId(req);
+      if (!requestedBopId) {
+        return next(); // No BOP context needed
+      }
+
+      if (!req.user.assignedBopId || req.user.assignedBopId === requestedBopId) {
+        return next();
+      }
+
+      const requestedBop = await prisma.bop.findFirst({
+        where: { OR: [{ id: requestedBopId }, { code: requestedBopId }] },
+        select: { id: true },
+      });
+
+      if (requestedBop?.id !== req.user.assignedBopId) {
+        return next(AppError.forbidden('You are not authorized to access this BOP'));
+      }
+
+      next();
+    } catch (error) {
+      next(error);
     }
-
-    const role = req.user.role as UserRole;
-
-    // SUPER_ADMIN and COMMANDER can access all BOPs
-    if (role === 'SUPER_ADMIN' || role === 'COMMANDER') {
-      return next();
-    }
-
-    const requestedBopId = await getBopId(req);
-    if (!requestedBopId) {
-      return next(); // No BOP context needed
-    }
-
-    if (req.user.assignedBopId && req.user.assignedBopId !== requestedBopId) {
-      return next(AppError.forbidden('You are not authorized to access this BOP'));
-    }
-
-    next();
   };
 }

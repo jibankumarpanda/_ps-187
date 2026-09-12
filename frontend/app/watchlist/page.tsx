@@ -64,7 +64,7 @@ export default function WatchlistPage() {
         actions={
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-[#37B9FF] hover:bg-[#37B9FF]/90 text-[#071018] rounded-[7px] text-xs font-bold transition-all shadow-lg"
+            className="flex items-center gap-1.5 px-4 py-2 bg-accent hover:bg-accent/90 text-[#071018] rounded-none text-xs font-bold transition-all shadow-lg"
           >
             <Plus className="w-4 h-4" />
             {activeTab === 'persons' ? 'Add Person' : 'Add Vehicle'}
@@ -75,24 +75,24 @@ export default function WatchlistPage() {
       {/* Tabs and Search */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
         {/* Navigation Tabs (Section 36) */}
-        <div className="flex bg-[#141C24] border border-[#263442] rounded-[8px] p-1 w-max">
+        <div className="flex bg-card border border-border rounded-none p-1 w-max">
           <button
             onClick={() => setActiveTab('persons')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-[6px] text-xs font-semibold transition-colors ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-none text-xs font-semibold transition-colors ${
               activeTab === 'persons'
-                ? 'bg-[#18222C] text-[#F3F6F8] shadow'
-                : 'text-[#8D99A5] hover:text-[#F3F6F8]'
+                ? 'bg-muted text-foreground shadow'
+                : 'text-[#8D99A5] hover:text-foreground'
             }`}
           >
-            <Users className="w-4 h-4 text-[#37B9FF]" />
+            <Users className="w-4 h-4 text-accent" />
             Persons of Interest ({persons.length})
           </button>
           <button
             onClick={() => setActiveTab('vehicles')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-[6px] text-xs font-semibold transition-colors ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-none text-xs font-semibold transition-colors ${
               activeTab === 'vehicles'
-                ? 'bg-[#18222C] text-[#F3F6F8] shadow'
-                : 'text-[#8D99A5] hover:text-[#F3F6F8]'
+                ? 'bg-muted text-foreground shadow'
+                : 'text-[#8D99A5] hover:text-foreground'
             }`}
           >
             <Car className="w-4 h-4 text-[#F4C95D]" />
@@ -102,13 +102,13 @@ export default function WatchlistPage() {
 
         {/* Search */}
         <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6E7B87]" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={activeTab === 'persons' ? 'Search by name or reference...' : 'Search license plate...'}
-            className="w-full bg-[#0F151C] border border-[#263442] rounded-[7px] pl-9 pr-4 h-9 text-xs text-[#F3F6F8] placeholder:text-[#677480] focus:border-[#37B9FF] focus:outline-none"
+            className="w-full bg-[#0F151C] border border-border rounded-none pl-9 pr-4 h-9 text-xs text-foreground placeholder:text-[#677480] focus:border-[#37B9FF] focus:outline-none"
           />
         </div>
       </div>

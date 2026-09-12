@@ -38,17 +38,17 @@ export function ConfirmDialog({
           <button
             onClick={onClose}
             disabled={isLoading}
-            className="px-4 py-2 text-xs font-semibold text-[#D8E0E6] bg-[#18222C] border border-[#344454] rounded-[7px] hover:bg-[#1E2A35] transition-colors"
+            className="px-4 py-2 text-xs font-semibold text-[#D8E0E6] bg-muted border border-border rounded-none hover:bg-muted transition-colors"
           >
             {cancelText}
           </button>
           <button
             onClick={onConfirm}
             disabled={isLoading}
-            className={`px-4 py-2 text-xs font-semibold rounded-[7px] transition-colors flex items-center gap-1.5 ${
+            className={`px-4 py-2 text-xs font-semibold rounded-none transition-colors flex items-center gap-1.5 ${
               isDestructive
-                ? 'bg-[#FF5C67]/20 border border-[#FF5C67]/50 text-[#FF7A83] hover:bg-[#FF5C67]/30'
-                : 'bg-[#37B9FF] text-[#071018] hover:bg-[#37B9FF]/90 font-bold'
+                ? 'bg-red-500/20 border border-[#FF5C67]/50 text-[#FF7A83] hover:bg-red-500/30'
+                : 'bg-accent text-[#071018] hover:bg-accent/90 font-bold'
             }`}
           >
             {isLoading && (
@@ -61,15 +61,15 @@ export function ConfirmDialog({
     >
       <div className="flex items-start gap-3 py-2">
         <div
-          className={`p-2.5 rounded-lg border flex-shrink-0 ${
+          className={`p-2.5 rounded-none border flex-shrink-0 ${
             isDestructive
-              ? 'bg-[#FF5C67]/10 border-[#FF5C67]/30 text-[#FF5C67]'
-              : 'bg-[#37B9FF]/10 border-[#37B9FF]/30 text-[#37B9FF]'
+              ? 'bg-red-500/10 border-[#FF5C67]/30 text-red-500'
+              : 'bg-accent/10 border-[#37B9FF]/30 text-accent'
           }`}
         >
           <AlertTriangle className="w-5 h-5" />
         </div>
-        <p className="text-sm text-[#A7B2BD] leading-relaxed mt-0.5">{message}</p>
+        <p className="text-sm text-muted-foreground leading-relaxed mt-0.5">{message}</p>
       </div>
     </Modal>
   );

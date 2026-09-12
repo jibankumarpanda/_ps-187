@@ -12,10 +12,10 @@ interface ServiceStatusTableProps {
 
 export function ServiceStatusTable({ services, className = '' }: ServiceStatusTableProps) {
   return (
-    <div className={`bg-[#141C24] border border-[#263442] rounded-[10px] overflow-hidden ${className}`}>
-      <div className="p-4 border-b border-[#263442] bg-[#18222C]/60 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-[#F3F6F8]">Mission-Critical Platform Microservices</h3>
-        <span className="text-xs font-mono text-[#39D98A] bg-[#39D98A]/10 px-2 py-0.5 rounded border border-[#39D98A]/20">
+    <div className={`bg-card border border-border rounded-none overflow-hidden ${className}`}>
+      <div className="p-4 border-b border-border bg-muted/60 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-foreground">Mission-Critical Platform Microservices</h3>
+        <span className="text-xs font-mono text-green-500 bg-[#39D98A]/10 px-2 py-0.5 rounded border border-[#39D98A]/20">
           ALL SERVICES OPERATIONAL
         </span>
       </div>
@@ -34,19 +34,19 @@ export function ServiceStatusTable({ services, className = '' }: ServiceStatusTa
           <tbody className="divide-y divide-[#25313C]">
             {services.map((svc) => (
               <tr key={svc.name} className="hover:bg-[#17212A] transition-colors">
-                <td className="px-4 py-3.5 font-semibold text-[#F3F6F8]">{svc.name}</td>
+                <td className="px-4 py-3.5 font-semibold text-foreground">{svc.name}</td>
                 <td className="px-4 py-3.5">
                   <StatusBadge status={svc.status} />
                 </td>
-                <td className="px-4 py-3.5 font-mono text-[#F3F6F8]">
-                  <span className={svc.latency < 50 ? 'text-[#39D98A]' : 'text-[#F4C95D]'}>
+                <td className="px-4 py-3.5 font-mono text-foreground">
+                  <span className={svc.latency < 50 ? 'text-green-500' : 'text-[#F4C95D]'}>
                     {svc.latency}ms
                   </span>
                 </td>
-                <td className="px-4 py-3.5 font-mono text-[#39D98A] font-medium">
+                <td className="px-4 py-3.5 font-mono text-green-500 font-medium">
                   {svc.uptime}%
                 </td>
-                <td className="px-4 py-3.5 font-mono text-[#A7B2BD]">
+                <td className="px-4 py-3.5 font-mono text-muted-foreground">
                   {formatTime(svc.lastCheck)}
                 </td>
               </tr>

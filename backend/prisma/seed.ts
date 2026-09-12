@@ -78,72 +78,7 @@ async function main() {
   }
   console.log('Created Cameras');
 
-  // --- Scenario: Intrusion -> Alert -> Evidence ---
-  const event = await prisma.event.upsert({
-    where: { eventCode: 'EVT-10001' },
-    update: {},
-    create: {
-      eventCode: 'EVT-10001',
-      eventType: 'INTRUSION',
-      objectType: 'PERSON',
-      cameraId: cameras[2].id,
-      bopId: bops[0].id,
-      confidence: 0.98,
-      zone: 'Alpha-Restricted',
-      severity: 'CRITICAL',
-      threatScore: 92,
-      timestamp: new Date(),
-    },
-  });
 
-  const alert = await prisma.alert.upsert({
-    where: { alertCode: 'ALT-10001' },
-    update: {},
-    create: {
-      alertCode: 'ALT-10001',
-      eventId: event.id,
-      cameraId: cameras[2].id,
-      bopId: bops[0].id,
-      eventType: 'INTRUSION',
-      severity: 'CRITICAL',
-      threatScore: 92,
-      description: 'Multiple individuals breached perimeter fence at Zone Alpha.',
-      timestamp: new Date(),
-    },
-  });
-
-  const evidence = await prisma.evidence.upsert({
-    where: { evidenceCode: 'EVD-10001' },
-    update: {},
-    create: {
-      evidenceCode: 'EVD-10001',
-      eventId: event.id,
-      cameraId: cameras[2].id,
-      bopId: bops[0].id,
-      evidenceType: 'VIDEO_CLIP',
-      hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', // sha256 empty string for demo
-      recordedBy: 'SYSTEM',
-      recordedOrg: 'IBVAP',
-      verificationStatus: 'PENDING',
-      timestamp: new Date(),
-    },
-  });
-
-  await prisma.blockchainRecord.upsert({
-    where: { transactionId: 'TX-A1B2C3D' },
-    update: {},
-    create: {
-      transactionId: 'TX-A1B2C3D',
-      blockNumber: 14502,
-      evidenceHash: evidence.hash,
-      recordedOrg: evidence.recordedOrg,
-      recordedBy: evidence.recordedBy,
-      timestamp: new Date(),
-      evidenceId: evidence.id,
-    },
-  });
-
-  console.log('Created Demo Scenario (Event -> Alert -> Evidence -> Blockchain)');
 }
 
 main()

@@ -70,8 +70,8 @@ export function VideoPlayer({
 
   return (
     <div
-      className={`relative bg-[#05080B] rounded-[8px] overflow-hidden border transition-all ${
-        hasIntrusion ? 'border-[#FF5C67] ring-1 ring-[#FF5C67]/50' : 'border-[#263442]'
+      className={`relative bg-[#05080B] rounded-none overflow-hidden border transition-all ${
+        hasIntrusion ? 'border-[#FF5C67] ring-1 ring-[#FF5C67]/50' : 'border-border'
       } ${className}`}
       style={{ aspectRatio: '16/9' }}
     >
@@ -85,7 +85,7 @@ export function VideoPlayer({
           onError={() => setPreviewFailed(true)}
         />
       ) : (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#070D12] text-[#6E7B87]">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#070D12] text-muted-foreground">
           <Video className="h-8 w-8" />
           <span className="font-mono text-[11px]">BROWSER PREVIEW UNAVAILABLE</span>
         </div>
@@ -153,10 +153,10 @@ export function VideoPlayer({
       {/* Header Overlay (Section 24: 36px–40px) */}
       <div className="absolute top-0 inset-x-0 h-9 bg-gradient-to-b from-black/85 via-black/50 to-transparent px-3 flex items-center justify-between z-30 pointer-events-none">
         <div className="flex items-center gap-2 pointer-events-auto">
-          <span className="text-xs font-bold text-[#F3F6F8] font-mono tracking-wider">
+          <span className="text-xs font-bold text-foreground font-mono tracking-wider">
             {camera.id}
           </span>
-          <span className="text-[10px] text-[#A7B2BD] font-medium hidden sm:inline">
+          <span className="text-[10px] text-muted-foreground font-medium hidden sm:inline">
             {camera.name}
           </span>
         </div>
@@ -164,7 +164,7 @@ export function VideoPlayer({
         <div className="flex items-center gap-3 pointer-events-auto">
           {hasBrowserPreview && (
             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-black/60 border border-white/10">
-              <span className="w-2 h-2 rounded-full bg-[#FF5C67] animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
               <span className="text-[10px] font-bold text-white tracking-widest font-mono">
                 LIVE
               </span>
@@ -197,7 +197,7 @@ export function VideoPlayer({
             {camera.bopId} | {camera.location?.toUpperCase()}
           </span>
           {hasIntrusion && (
-            <span className="text-[10px] font-bold font-mono px-1.5 py-0.5 rounded bg-[#FF5C67] text-[#071018] animate-pulse">
+            <span className="text-[10px] font-bold font-mono px-1.5 py-0.5 rounded bg-red-500 text-[#071018] animate-pulse">
               ACTIVE CRITICAL ALERT
             </span>
           )}
@@ -205,7 +205,7 @@ export function VideoPlayer({
 
         <div className="flex items-center gap-2 text-[10px] font-mono text-white/70">
           <span className="flex items-center gap-1">
-            <Activity className="w-3 h-3 text-[#37B9FF]" />
+            <Activity className="w-3 h-3 text-accent" />
             {camera.fps} FPS
           </span>
           <span>•</span>

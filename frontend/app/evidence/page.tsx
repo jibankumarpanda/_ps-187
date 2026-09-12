@@ -52,24 +52,24 @@ export default function EvidencePage() {
         actions={
           <button
             onClick={refetch}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] bg-[#18222C] hover:bg-[#1E2A35] border border-[#344454] text-xs font-semibold text-[#F3F6F8] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-muted hover:bg-muted border border-border text-xs font-semibold text-foreground transition-colors"
           >
-            <RefreshCw className="w-3.5 h-3.5 text-[#37B9FF]" />
+            <RefreshCw className="w-3.5 h-3.5 text-accent" />
             Sync Ledger
           </button>
         }
       />
 
       {/* Filter and Search Bar */}
-      <div className="bg-[#141C24] border border-[#263442] rounded-[10px] p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+      <div className="bg-card border border-border rounded-none p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6E7B87]" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by Evidence ID, Event ID, Tx ID..."
-            className="w-full bg-[#0F151C] border border-[#263442] rounded-[7px] pl-9 pr-4 h-9 text-xs text-[#F3F6F8] placeholder:text-[#677480] focus:border-[#37B9FF] focus:outline-none"
+            className="w-full bg-input border border-border rounded-none pl-9 pr-4 h-12 text-base text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none transition-colors"
           />
         </div>
 
@@ -111,11 +111,11 @@ export default function EvidencePage() {
       {isLoading ? (
         <TableSkeleton rows={8} cols={8} />
       ) : (
-        <div className="bg-[#141C24] border border-[#263442] rounded-[10px] overflow-hidden">
+        <div className="bg-card border border-border rounded-none overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-[#101820] border-b border-[#25313C] text-[10px] font-semibold uppercase tracking-[0.04em] text-[#8E9AA6]">
+                <tr className="bg-muted border-b border-border text-xs font-bold uppercase tracking-widest text-muted-foreground font-mono">
                   <th className="px-4 py-3.5">Evidence ID</th>
                   <th className="px-4 py-3.5">Event ID</th>
                   <th className="px-4 py-3.5">Camera / BOP</th>
@@ -127,46 +127,46 @@ export default function EvidencePage() {
                   <th className="px-4 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#25313C]">
+              <tbody className="divide-y divide-border">
                 {filteredEvidence.map((ev) => (
-                  <tr key={ev.evidenceId} className="hover:bg-[#17212A] transition-colors">
-                    <td className="px-4 py-3.5 font-mono font-bold text-[#37B9FF]">
+                  <tr key={ev.evidenceId} className="hover:bg-muted transition-colors">
+                    <td className="px-4 py-3.5 font-mono font-bold text-accent">
                       <Link href={`/evidence/${ev.evidenceId}`} className="hover:underline">
                         {ev.evidenceId}
                       </Link>
                     </td>
-                    <td className="px-4 py-3.5 font-mono text-[#F3F6F8]">
-                      <Link href={`/events/${ev.eventId}`} className="hover:text-[#37B9FF] hover:underline">
+                    <td className="px-4 py-3.5 font-mono text-foreground">
+                      <Link href={`/events/${ev.eventId}`} className="hover:text-accent hover:underline">
                         {ev.eventId}
                       </Link>
                     </td>
                     <td className="px-4 py-3.5">
-                      <div className="font-mono text-[#F3F6F8]">{ev.cameraId}</div>
-                      <div className="text-[11px] text-[#A7B2BD] font-mono">{ev.bopId}</div>
+                      <div className="font-mono text-foreground">{ev.cameraId}</div>
+                      <div className="text-[11px] text-muted-foreground font-mono">{ev.bopId}</div>
                     </td>
                     <td className="px-4 py-3.5">
-                      <span className="px-2 py-0.5 rounded bg-[#0F151C] border border-[#263442] font-mono text-[10px] text-[#A7B2BD]">
+                      <span className="px-2 py-0.5 bg-muted border border-border font-mono text-xs text-muted-foreground uppercase tracking-widest">
                         {ev.evidenceType}
                       </span>
                     </td>
-                    <td className="px-4 py-3.5 font-mono text-[#A7B2BD]">
+                    <td className="px-4 py-3.5 font-mono text-muted-foreground">
                       {formatTimestamp(ev.timestamp)}
                     </td>
                     <td className="px-4 py-3.5 font-mono text-xs">
                       <button
                         onClick={() => handleCopyHash(ev.hash, ev.evidenceId)}
-                        className="flex items-center gap-1 text-[#A7B2BD] hover:text-[#37B9FF] transition-colors"
+                        className="flex items-center gap-1 text-muted-foreground hover:text-accent transition-colors"
                         title="Click to copy full SHA-256"
                       >
                         <span>{truncateHash(ev.hash)}</span>
                         {copiedId === ev.evidenceId ? (
-                          <Check className="w-3 h-3 text-[#39D98A]" />
+                          <Check className="w-3 h-3 text-green-500" />
                         ) : (
                           <Copy className="w-3 h-3 opacity-60" />
                         )}
                       </button>
                     </td>
-                    <td className="px-4 py-3.5 font-mono text-[#39D98A]">
+                    <td className="px-4 py-3.5 font-mono text-green-500">
                       {ev.blockchainTxId}
                     </td>
                     <td className="px-4 py-3.5">
@@ -175,7 +175,7 @@ export default function EvidencePage() {
                     <td className="px-4 py-3.5 text-right">
                       <Link
                         href={`/evidence/${ev.evidenceId}`}
-                        className="px-2.5 py-1 text-[11px] font-bold text-[#071018] bg-[#37B9FF] hover:bg-[#37B9FF]/90 rounded-[6px] transition-colors inline-flex items-center gap-1"
+                        className="px-4 py-2 text-xs font-bold text-accent-foreground bg-accent hover:bg-foreground hover:text-background rounded-none transition-colors inline-flex items-center gap-2 uppercase tracking-wider"
                       >
                         <ShieldCheck className="w-3.5 h-3.5" />
                         Verify
