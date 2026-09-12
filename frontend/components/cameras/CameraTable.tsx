@@ -36,7 +36,7 @@ export function CameraTable({
 
   return (
     <>
-      <div className={`bg-[#141C24] border border-[#263442] rounded-[10px] overflow-hidden ${className}`}>
+      <div className={`bg-card border border-border rounded-none overflow-hidden ${className}`}>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
@@ -54,29 +54,29 @@ export function CameraTable({
             <tbody className="divide-y divide-[#25313C]">
               {cameras.map((cam) => (
                 <tr key={cam.id} className="hover:bg-[#17212A] transition-colors">
-                  <td className="px-4 py-3.5 font-mono font-bold text-[#F3F6F8]">
-                    <Link href={`/cameras/${cam.id}`} className="hover:text-[#37B9FF] transition-colors">
+                  <td className="px-4 py-3.5 font-mono font-bold text-foreground">
+                    <Link href={`/cameras/${cam.id}`} className="hover:text-accent transition-colors">
                       {cam.id}
                     </Link>
                   </td>
                   <td className="px-4 py-3.5">
-                    <div className="font-semibold text-[#F3F6F8]">{cam.name}</div>
-                    <div className="text-[11px] text-[#A7B2BD]">{cam.location}</div>
+                    <div className="font-semibold text-foreground">{cam.name}</div>
+                    <div className="text-[11px] text-muted-foreground">{cam.location}</div>
                   </td>
-                  <td className="px-4 py-3.5 font-mono font-medium text-[#37B9FF]">{cam.bopId}</td>
+                  <td className="px-4 py-3.5 font-mono font-medium text-accent">{cam.bopId}</td>
                   <td className="px-4 py-3.5">
                     <StatusBadge status={cam.status} />
                   </td>
-                  <td className="px-4 py-3.5 font-mono text-[#F3F6F8]">{cam.fps}</td>
+                  <td className="px-4 py-3.5 font-mono text-foreground">{cam.fps}</td>
                   <td className="px-4 py-3.5">
                     <StatusBadge status={cam.aiStatus} />
                   </td>
-                  <td className="px-4 py-3.5 font-mono text-[#A7B2BD]">{formatTime(cam.lastSeen)}</td>
+                  <td className="px-4 py-3.5 font-mono text-muted-foreground">{formatTime(cam.lastSeen)}</td>
                   <td className="px-4 py-3.5 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Link
                         href={`/cameras/${cam.id}`}
-                        className="p-1.5 rounded-[6px] text-[#A7B2BD] hover:text-[#37B9FF] hover:bg-[#18222C] transition-colors"
+                        className="p-1.5 rounded-none text-muted-foreground hover:text-accent hover:bg-muted transition-colors"
                         title="View CCTV Stream & Virtual Fence"
                       >
                         <Eye className="w-3.5 h-3.5" />
@@ -85,10 +85,10 @@ export function CameraTable({
                         <button
                           onClick={() => toggleCamera(cam.id)}
                           disabled={pendingCameraId === cam.id}
-                          className={`p-1.5 rounded-[6px] hover:bg-[#18222C] transition-colors ${
+                          className={`p-1.5 rounded-none hover:bg-muted transition-colors ${
                             cam.status === 'ONLINE'
                               ? 'text-[#F4C95D] hover:text-[#F4C95D]'
-                              : 'text-[#39D98A] hover:text-[#39D98A]'
+                              : 'text-green-500 hover:text-green-500'
                           }`}
                           title={cam.status === 'ONLINE' ? 'Stop Stream' : 'Start Stream'}
                         >
@@ -104,7 +104,7 @@ export function CameraTable({
                       {onDelete && (
                         <button
                           onClick={() => setCameraToDelete(cam)}
-                          className="p-1.5 rounded-[6px] text-[#6E7B87] hover:text-[#FF5C67] hover:bg-[#FF5C67]/10 transition-colors"
+                          className="p-1.5 rounded-none text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
                           title="Delete Camera"
                         >
                           <Trash2 className="w-3.5 h-3.5" />

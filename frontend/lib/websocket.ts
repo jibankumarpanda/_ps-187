@@ -1,3 +1,5 @@
+import { getToken, refreshAccessToken } from '@/lib/api';
+
 type WSEventType = 'new_alert' | 'new_event' | 'camera_status_changed' | 'evidence_created' | 'blockchain_updated';
 
 type WSListener = (data: Record<string, unknown>) => void;
@@ -13,14 +15,16 @@ class IBVAPWebSocket {
     if (typeof window === 'undefined') return;
     if (this.socket?.connected || this.connecting) return;
 
-    const token = localStorage.getItem('ibvap_token');
+    const token = getToken();
     if (!token) return;
 
     this.connecting = true;
 
     import('socket.io-client').then(({ io }) => {
       this.socket = io(WS_URL, {
-        auth: { token },
+        auth: (cb) => {
+          cb({ token: getToken() });
+        },
         transports: ['websocket', 'polling'],
         reconnection: true,
         reconnectionDelay: 2000,
@@ -31,9 +35,15 @@ class IBVAPWebSocket {
         console.info('[WS] Connected to IBVAP backend');
       });
 
-      this.socket.on('connect_error', (err) => {
+      this.socket.on('connect_error', async (err) => {
         this.connecting = false;
         console.warn('[WS] Connection failed:', err.message);
+        if (err.message?.includes('Authentication error')) {
+          const refreshed = await refreshAccessToken();
+          if (refreshed && this.socket) {
+            this.socket.connect();
+          }
+        }
       });
 
       const events: WSEventType[] = [

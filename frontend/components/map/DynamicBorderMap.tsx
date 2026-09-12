@@ -8,10 +8,10 @@ import type { Alert } from '@/types/alert';
 const MapLibreMap = dynamic(() => import('./MapLibreMap'), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-full min-h-[400px] flex items-center justify-center bg-[#070D12] rounded-[10px] border border-[#263442]">
+    <div className="w-full h-full min-h-[400px] flex items-center justify-center bg-[#070D12] rounded-none border border-border">
       <div className="flex flex-col items-center gap-4">
         <div className="w-8 h-8 border-2 border-[#37B9FF] border-t-transparent rounded-full animate-spin"></div>
-        <span className="text-[#A7B2BD] font-mono text-sm">Initializing Tactical Map...</span>
+        <span className="text-muted-foreground font-mono text-sm">Initializing Tactical Map...</span>
       </div>
     </div>
   ),

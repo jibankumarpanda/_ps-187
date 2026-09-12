@@ -84,14 +84,14 @@ export function VirtualFenceEditor({ cameraId, initialPoints, onSave, className 
   const pointsString = points.map((p) => `${p.x},${p.y}`).join(' ');
 
   return (
-    <div className={`bg-[#141C24] border border-[#263442] rounded-[10px] p-5 flex flex-col ${className}`}>
+    <div className={`bg-card border border-border rounded-none p-5 flex flex-col ${className}`}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
-          <h3 className="text-sm font-semibold text-[#F3F6F8] flex items-center gap-2">
-            <Shield className="w-4 h-4 text-[#37B9FF]" />
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Shield className="w-4 h-4 text-accent" />
             Virtual Perimeter & Geofence Editor
           </h3>
-          <p className="text-xs text-[#A7B2BD] mt-0.5">
+          <p className="text-xs text-muted-foreground mt-0.5">
             Define tripwires and restricted polygon boundaries. Click viewport to plot coordinates.
           </p>
         </div>
@@ -99,10 +99,10 @@ export function VirtualFenceEditor({ cameraId, initialPoints, onSave, className 
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setMode('polygon')}
-            className={`px-3 py-1.5 rounded-[7px] text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+            className={`px-3 py-1.5 rounded-none text-xs font-semibold flex items-center gap-1.5 transition-colors ${
               mode === 'polygon'
-                ? 'bg-[#37B9FF] text-[#071018]'
-                : 'bg-[#18222C] text-[#A7B2BD] hover:text-[#F3F6F8] border border-[#344454]'
+                ? 'bg-accent text-[#071018]'
+                : 'bg-muted text-muted-foreground hover:text-foreground border border-border'
             }`}
           >
             <PenTool className="w-3.5 h-3.5" />
@@ -110,17 +110,17 @@ export function VirtualFenceEditor({ cameraId, initialPoints, onSave, className 
           </button>
           <button
             onClick={() => setMode('line')}
-            className={`px-3 py-1.5 rounded-[7px] text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+            className={`px-3 py-1.5 rounded-none text-xs font-semibold flex items-center gap-1.5 transition-colors ${
               mode === 'line'
-                ? 'bg-[#37B9FF] text-[#071018]'
-                : 'bg-[#18222C] text-[#A7B2BD] hover:text-[#F3F6F8] border border-[#344454]'
+                ? 'bg-accent text-[#071018]'
+                : 'bg-muted text-muted-foreground hover:text-foreground border border-border'
             }`}
           >
             Draw Line
           </button>
           <button
             onClick={handleClear}
-            className="px-3 py-1.5 rounded-[7px] text-xs font-semibold bg-[#18222C] hover:bg-[#FF5C67]/20 border border-[#344454] hover:border-[#FF5C67]/40 text-[#A7B2BD] hover:text-[#FF7A83] transition-colors flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-none text-xs font-semibold bg-muted hover:bg-red-500/20 border border-border hover:border-[#FF5C67]/40 text-muted-foreground hover:text-[#FF7A83] transition-colors flex items-center gap-1.5"
           >
             <Trash2 className="w-3.5 h-3.5" />
             Clear
@@ -128,7 +128,7 @@ export function VirtualFenceEditor({ cameraId, initialPoints, onSave, className 
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="px-3.5 py-1.5 rounded-[7px] text-xs font-bold bg-[#39D98A] text-[#071018] hover:bg-[#39D98A]/90 transition-colors flex items-center gap-1.5"
+            className="px-3.5 py-1.5 rounded-none text-xs font-bold bg-[#39D98A] text-[#071018] hover:bg-[#39D98A]/90 transition-colors flex items-center gap-1.5"
           >
             <Check className="w-3.5 h-3.5" />
             {isSaving ? 'Saving...' : 'Save Zone'}
@@ -138,7 +138,7 @@ export function VirtualFenceEditor({ cameraId, initialPoints, onSave, className 
 
       {/* Editor Canvas Area */}
       <div
-        className="relative bg-[#05080B] border border-[#263442] rounded-[8px] overflow-hidden cursor-crosshair"
+        className="relative bg-[#05080B] border border-border rounded-none overflow-hidden cursor-crosshair"
         style={{ aspectRatio: '16/9' }}
       >
         {/* Subtle grid backdrop */}
@@ -181,8 +181,8 @@ export function VirtualFenceEditor({ cameraId, initialPoints, onSave, className 
         </svg>
 
         {/* Tip / instructions overlay */}
-        <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded bg-black/75 border border-white/10 text-[11px] font-mono text-[#A7B2BD] pointer-events-none flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#37B9FF] animate-ping" />
+        <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded bg-black/75 border border-white/10 text-[11px] font-mono text-muted-foreground pointer-events-none flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-accent animate-ping" />
           Click to add vertices ({points.length} defined) • Restricted Zone: Translucent Overlay Active
         </div>
       </div>

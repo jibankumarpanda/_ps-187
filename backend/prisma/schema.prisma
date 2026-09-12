@@ -13,6 +13,19 @@ datasource db {
 
 // ─── ENUMS ───────────────────────────────────────────────
 
+enum CameraSourceType {
+  RTSP
+  VIDEO
+}
+
+enum VideoJobStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
 enum UserRole {
   SUPER_ADMIN
   COMMANDER
@@ -175,6 +188,8 @@ model Camera {
   cameraCode            String       @unique    // e.g. BOP12-CAM01
   name                  String
   location              String
+  sourceType            CameraSourceType @default(RTSP)
+  videoPath             String?
   status                CameraStatus @default(OFFLINE)
   fps                   Int          @default(0)
   resolution            String       @default("1920x1080")
@@ -198,6 +213,7 @@ model Camera {
   detections            Detection[]
   alerts                Alert[]
   evidence              Evidence[]
+  videoJobs             VideoAnalysis[]
 
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
@@ -418,4 +434,49 @@ model BlockchainRecord {
 
   @@index([evidenceId])
   @@index([transactionId])
+}
+
+model VideoAnalysis {
+  id                 String         @id @default(uuid())
+  cameraId           String
+  filename           String
+  originalPath       String
+  processedPath      String?
+  status             VideoJobStatus @default(QUEUED)
+  progress           Int            @default(0)
+  totalFrames        Int?
+  processedFrames    Int?
+  fps                Float?
+  duration           Float?
+  personsDetected    Int            @default(0)
+  vehiclesDetected   Int            @default(0)
+  intrusionCount     Int            @default(0)
+  loiteringCount     Int            @default(0)
+  nightCount         Int            @default(0)
+  faceMatchCount     Int            @default(0)
+  startedAt          DateTime?
+  completedAt        DateTime?
+  error              String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  camera             Camera         @relation(fields: [cameraId], references: [id], onDelete: Cascade)
+  events             VideoEvent[]
+}
+
+model VideoEvent {
+  id                 String         @id @default(uuid())
+  videoId            String
+  type               String
+  severity           String
+  timestamp          Float
+  frameNumber        Int?
+  confidence         Float?
+  trackId            String?
+  description        String?
+  evidenceId         String?
+  metadata           Json?
+  createdAt          DateTime       @default(now())
+
+  video              VideoAnalysis  @relation(fields: [videoId], references: [id], onDelete: Cascade)
 }

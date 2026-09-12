@@ -20,10 +20,10 @@ export default function EventsPage() {
   const [bopFilter, setBopFilter] = useState('');
 
   const getEventIcon = (type: string) => {
-    if (type.includes('PERSON') || type === 'INTRUSION') return <User className="w-3.5 h-3.5 text-[#37B9FF]" />;
+    if (type.includes('PERSON') || type === 'INTRUSION') return <User className="w-3.5 h-3.5 text-accent" />;
     if (type.includes('VEHICLE') || type === 'ANPR_MATCH') return <Car className="w-3.5 h-3.5 text-[#F4C95D]" />;
-    if (type.includes('FACE')) return <ScanFace className="w-3.5 h-3.5 text-[#39D98A]" />;
-    return <AlertTriangle className="w-3.5 h-3.5 text-[#FF8A4C]" />;
+    if (type.includes('FACE')) return <ScanFace className="w-3.5 h-3.5 text-green-500" />;
+    return <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />;
   };
 
   const filteredEvents = events.filter((evt) => {
@@ -59,24 +59,24 @@ export default function EventsPage() {
               downloadAnchor.click();
               downloadAnchor.remove();
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] bg-[#18222C] hover:bg-[#1E2A35] border border-[#344454] text-xs font-semibold text-[#F3F6F8] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-muted hover:bg-muted border border-border text-xs font-semibold text-foreground transition-colors"
           >
-            <Download className="w-3.5 h-3.5 text-[#37B9FF]" />
+            <Download className="w-3.5 h-3.5 text-accent" />
             Export Log
           </button>
         }
       />
 
       {/* Filter and Search Bar */}
-      <div className="bg-[#141C24] border border-[#263442] rounded-[10px] p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+      <div className="bg-card border border-border rounded-none p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6E7B87]" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by Event ID, Zone, BOP..."
-            className="w-full bg-[#0F151C] border border-[#263442] rounded-[7px] pl-9 pr-4 h-9 text-xs text-[#F3F6F8] placeholder:text-[#677480] focus:border-[#37B9FF] focus:outline-none"
+            className="w-full bg-[#0F151C] border border-border rounded-none pl-9 pr-4 h-9 text-xs text-foreground placeholder:text-[#677480] focus:border-[#37B9FF] focus:outline-none"
           />
         </div>
 
@@ -137,7 +137,7 @@ export default function EventsPage() {
       {isLoading ? (
         <TableSkeleton rows={8} cols={9} />
       ) : (
-        <div className="bg-[#141C24] border border-[#263442] rounded-[10px] overflow-hidden">
+        <div className="bg-card border border-border rounded-none overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
@@ -160,25 +160,25 @@ export default function EventsPage() {
                     className="hover:bg-[#17212A] transition-colors cursor-pointer group"
                     onClick={() => (window.location.href = `/events/${evt.eventId}`)}
                   >
-                    <td className="px-4 py-3.5 font-mono font-bold text-[#37B9FF] group-hover:underline">
+                    <td className="px-4 py-3.5 font-mono font-bold text-accent group-hover:underline">
                       <Link href={`/events/${evt.eventId}`}>{evt.eventId}</Link>
                     </td>
                     <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-1.5 font-semibold text-[#F3F6F8]">
+                      <div className="flex items-center gap-1.5 font-semibold text-foreground">
                         {getEventIcon(evt.eventType)}
                         <span>{EVENT_TYPE_LABELS[evt.eventType] || evt.eventType}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3.5">
-                      <div className="font-mono text-[#F3F6F8]">{evt.cameraId}</div>
-                      <div className="text-[11px] text-[#A7B2BD] font-mono">{evt.bopId} • {evt.zone}</div>
+                      <div className="font-mono text-foreground">{evt.cameraId}</div>
+                      <div className="text-[11px] text-muted-foreground font-mono">{evt.bopId} • {evt.zone}</div>
                     </td>
-                    <td className="px-4 py-3.5 font-mono font-bold text-[#A7B2BD]">
+                    <td className="px-4 py-3.5 font-mono font-bold text-muted-foreground">
                       {evt.objectType}
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-2">
-                        <div className="w-14 h-1.5 bg-[#0F151C] rounded-full overflow-hidden border border-[#263442]">
+                        <div className="w-14 h-1.5 bg-[#0F151C] rounded-full overflow-hidden border border-border">
                           <div
                             className={`h-full ${
                               evt.confidence > 0.9 ? 'bg-[#39D98A]' : 'bg-[#F4C95D]'
@@ -186,18 +186,18 @@ export default function EventsPage() {
                             style={{ width: `${evt.confidence * 100}%` }}
                           />
                         </div>
-                        <span className="font-mono text-[11px] text-[#F3F6F8]">
+                        <span className="font-mono text-[11px] text-foreground">
                           {(evt.confidence * 100).toFixed(0)}%
                         </span>
                       </div>
                     </td>
-                    <td className="px-4 py-3.5 font-mono font-bold text-[#FF5C67]">
+                    <td className="px-4 py-3.5 font-mono font-bold text-red-500">
                       {evt.threatScore} / 100
                     </td>
                     <td className="px-4 py-3.5">
                       <SeverityBadge severity={evt.severity} />
                     </td>
-                    <td className="px-4 py-3.5 font-mono text-[#A7B2BD]">
+                    <td className="px-4 py-3.5 font-mono text-muted-foreground">
                       {formatTimestamp(evt.timestamp)}
                     </td>
                     <td className="px-4 py-3.5">

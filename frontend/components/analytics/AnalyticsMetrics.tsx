@@ -33,11 +33,11 @@ export function AnalyticsMetrics({
       {/* Top 2 charts: Daily Detection Breakdown & Threat Distribution */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Detection Trends */}
-        <div className="lg:col-span-8 bg-[#141C24] border border-[#263442] rounded-[10px] p-5">
+        <div className="lg:col-span-8 bg-card border border-border rounded-none p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-sm font-semibold text-[#F3F6F8]">7-Day AI Detection Volume</h3>
-              <p className="text-xs text-[#A7B2BD] mt-0.5">Person, vehicle, intrusion & ANPR activity breakdown</p>
+              <h3 className="text-sm font-semibold text-foreground">7-Day AI Detection Volume</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Person, vehicle, intrusion & ANPR activity breakdown</p>
             </div>
           </div>
 
@@ -69,10 +69,10 @@ export function AnalyticsMetrics({
         </div>
 
         {/* Threat Distribution Donut */}
-        <div className="lg:col-span-4 bg-[#141C24] border border-[#263442] rounded-[10px] p-5 flex flex-col justify-between">
+        <div className="lg:col-span-4 bg-card border border-border rounded-none p-5 flex flex-col justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-[#F3F6F8]">Threat Distribution</h3>
-            <p className="text-xs text-[#A7B2BD] mt-0.5">Categorized by threat severity index</p>
+            <h3 className="text-sm font-semibold text-foreground">Threat Distribution</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Categorized by threat severity index</p>
           </div>
 
           <div className="h-60 w-full my-auto flex items-center justify-center">
@@ -104,12 +104,12 @@ export function AnalyticsMetrics({
             </ResponsiveContainer>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#263442] text-xs">
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border text-xs">
             {threatDistribution.map((item) => (
-              <div key={item.name} className="flex items-center gap-1.5 text-[#A7B2BD]">
+              <div key={item.name} className="flex items-center gap-1.5 text-muted-foreground">
                 <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: item.color }} />
                 <span>{item.name}:</span>
-                <strong className="text-[#F3F6F8] font-mono">{item.value}</strong>
+                <strong className="text-foreground font-mono">{item.value}</strong>
               </div>
             ))}
           </div>
@@ -117,11 +117,11 @@ export function AnalyticsMetrics({
       </div>
 
       {/* BOP Comparison Bar */}
-      <div className="bg-[#141C24] border border-[#263442] rounded-[10px] p-5">
+      <div className="bg-card border border-border rounded-none p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-sm font-semibold text-[#F3F6F8]">Sector-Wise BOP Event Distribution</h3>
-            <p className="text-xs text-[#A7B2BD] mt-0.5">
+            <h3 className="text-sm font-semibold text-foreground">Sector-Wise BOP Event Distribution</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
               Comparison of active surveillance telemetry across Border Outposts
             </p>
           </div>

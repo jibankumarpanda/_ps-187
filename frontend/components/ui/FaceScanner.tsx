@@ -217,10 +217,10 @@ export function FaceScanner({ onVerificationComplete, accessToken }: FaceScanner
           animation: pulseGlow 2s ease-in-out infinite;
         }
       `}} />
-      <div className="relative w-48 h-48 sm:w-64 sm:h-64 rounded-full overflow-hidden border-4 border-[#263442] bg-[#0F151C] shadow-inner flex items-center justify-center">
+      <div className="relative w-48 h-48 sm:w-64 sm:h-64 rounded-full overflow-hidden border-4 border-border bg-[#0F151C] shadow-inner flex items-center justify-center">
         {/* Loading models state */}
         {scanState === 'loading_models' && (
-          <div className="flex flex-col items-center justify-center text-[#6E7B87] space-y-2">
+          <div className="flex flex-col items-center justify-center text-muted-foreground space-y-2">
             <div className="w-8 h-8 border-2 border-[#37B9FF] border-t-transparent rounded-full animate-spin" />
             <span className="text-xs font-semibold">Loading AI Models...</span>
           </div>
@@ -228,7 +228,7 @@ export function FaceScanner({ onVerificationComplete, accessToken }: FaceScanner
 
         {/* Initializing camera */}
         {scanState === 'initializing' && (
-          <div className="flex flex-col items-center justify-center text-[#6E7B87] space-y-2">
+          <div className="flex flex-col items-center justify-center text-muted-foreground space-y-2">
             <Camera className="w-8 h-8 animate-pulse" />
             <span className="text-xs font-semibold">Initializing Camera...</span>
           </div>
@@ -236,7 +236,7 @@ export function FaceScanner({ onVerificationComplete, accessToken }: FaceScanner
 
         {/* Error state */}
         {scanState === 'error' && (
-          <div className="flex flex-col items-center justify-center text-[#FF5C67] space-y-2 p-4 text-center">
+          <div className="flex flex-col items-center justify-center text-red-500 space-y-2 p-4 text-center">
             <AlertCircle className="w-8 h-8" />
             <span className="text-xs font-semibold">{errorMsg}</span>
           </div>
@@ -265,7 +265,7 @@ export function FaceScanner({ onVerificationComplete, accessToken }: FaceScanner
             {scanState === 'scanning' && (
               <>
                 <div className="absolute inset-0 border-4 border-[#37B9FF] rounded-full animate-pulse" />
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-[#37B9FF] shadow-[0_0_8px_2px_rgba(55,185,255,0.8)] animate-scan-line" />
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-accent shadow-[0_0_8px_2px_rgba(55,185,255,0.8)] animate-scan-line" />
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div className="w-[80%] h-[80%] border border-dashed border-[#37B9FF]/50 rounded-full" />
                 </div>
@@ -279,24 +279,24 @@ export function FaceScanner({ onVerificationComplete, accessToken }: FaceScanner
 
             {/* Verifying overlay */}
             {scanState === 'verifying' && (
-              <div className="absolute inset-0 flex items-center justify-center bg-[#141C24]/40 backdrop-blur-sm z-10">
+              <div className="absolute inset-0 flex items-center justify-center bg-card/40 backdrop-blur-sm z-10">
                 <div className="w-10 h-10 border-3 border-[#37B9FF] border-t-transparent rounded-full animate-spin" />
               </div>
             )}
 
             {/* Success overlay */}
             {scanState === 'success' && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#141C24]/80 backdrop-blur-sm z-10 animate-fade-in">
-                <ShieldCheck className="w-16 h-16 text-[#39D98A] mb-2" />
-                <span className="text-sm font-bold text-[#F3F6F8]">Identity Verified</span>
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/80 backdrop-blur-sm z-10 animate-fade-in">
+                <ShieldCheck className="w-16 h-16 text-green-500 mb-2" />
+                <span className="text-sm font-bold text-foreground">Identity Verified</span>
               </div>
             )}
 
             {/* Enrolled overlay */}
             {scanState === 'enrolled' && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#141C24]/80 backdrop-blur-sm z-10 animate-fade-in">
-                <UserPlus className="w-16 h-16 text-[#37B9FF] mb-2" />
-                <span className="text-sm font-bold text-[#F3F6F8]">Face Enrolled</span>
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/80 backdrop-blur-sm z-10 animate-fade-in">
+                <UserPlus className="w-16 h-16 text-accent mb-2" />
+                <span className="text-sm font-bold text-foreground">Face Enrolled</span>
               </div>
             )}
           </>
@@ -307,31 +307,31 @@ export function FaceScanner({ onVerificationComplete, accessToken }: FaceScanner
       <div className="text-center h-12">
         {scanState === 'loading_models' && (
           <div className="flex flex-col items-center animate-fade-in">
-            <p className="text-xs font-semibold text-[#A7B2BD]">Loading face recognition AI models...</p>
+            <p className="text-xs font-semibold text-muted-foreground">Loading face recognition AI models...</p>
           </div>
         )}
         {scanState === 'scanning' && (
           <div className="flex flex-col items-center animate-fade-in">
-            <ScanFace className="w-5 h-5 text-[#37B9FF] mb-1 animate-bounce" />
-            <p className="text-xs font-semibold text-[#A7B2BD]">Detecting face... Please look straight</p>
+            <ScanFace className="w-5 h-5 text-accent mb-1 animate-bounce" />
+            <p className="text-xs font-semibold text-muted-foreground">Detecting face... Please look straight</p>
           </div>
         )}
         {scanState === 'capturing' && (
           <div className="flex flex-col items-center animate-fade-in">
-            <Camera className="w-5 h-5 text-[#39D98A] mb-1" />
-            <p className="text-xs font-semibold text-[#A7B2BD]">Capturing face data...</p>
+            <Camera className="w-5 h-5 text-green-500 mb-1" />
+            <p className="text-xs font-semibold text-muted-foreground">Capturing face data...</p>
           </div>
         )}
         {scanState === 'verifying' && (
           <div className="flex flex-col items-center animate-fade-in">
             <div className="w-5 h-5 border-2 border-[#37B9FF] border-t-transparent rounded-full animate-spin mb-1" />
-            <p className="text-xs font-semibold text-[#A7B2BD]">Verifying identity (1:1)...</p>
+            <p className="text-xs font-semibold text-muted-foreground">Verifying identity (1:1)...</p>
           </div>
         )}
         {scanState === 'success' && (
           <div className="flex flex-col items-center animate-fade-in">
-            <p className="text-xs font-bold text-[#39D98A]">Identity Verified</p>
-            <p className="text-[10px] text-[#A7B2BD] mt-0.5">
+            <p className="text-xs font-bold text-green-500">Identity Verified</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
               {resultData?.distance !== undefined
                 ? `Match confidence: ${((1 - resultData.distance / 0.6) * 100).toFixed(0)}%`
                 : 'Authorized for access.'}
@@ -340,8 +340,8 @@ export function FaceScanner({ onVerificationComplete, accessToken }: FaceScanner
         )}
         {scanState === 'enrolled' && (
           <div className="flex flex-col items-center animate-fade-in">
-            <p className="text-xs font-bold text-[#37B9FF]">Face Enrolled Successfully</p>
-            <p className="text-[10px] text-[#A7B2BD] mt-0.5">Your face will be used for future verifications.</p>
+            <p className="text-xs font-bold text-accent">Face Enrolled Successfully</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Your face will be used for future verifications.</p>
           </div>
         )}
       </div>

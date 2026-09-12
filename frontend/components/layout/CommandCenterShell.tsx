@@ -55,7 +55,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen bg-[#0A0F14] text-[#F3F6F8] font-sans overflow-hidden">
+    <div className="flex h-screen bg-background text-foreground font-sans overflow-hidden">
       {/* Persistent Left Sidebar */}
       <Sidebar
         collapsed={sidebarCollapsed}
@@ -65,7 +65,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
         <Header onOpenSearch={() => setIsSearchOpen(true)} />
-        <main className="flex-1 overflow-y-auto bg-[#0A0F14] p-5 sm:p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto bg-background p-5 sm:p-6 lg:p-8">
           {children}
         </main>
       </div>

@@ -21,15 +21,15 @@ export function CriticalAlertsList({
   const criticalAlerts = alerts.filter((a) => a.severity === 'CRITICAL' || a.severity === 'HIGH').slice(0, 4);
 
   return (
-    <div className={`bg-[#141C24] border border-[#263442] rounded-[10px] flex flex-col ${className}`}>
-      <div className="p-4 border-b border-[#263442] bg-[#18222C]/60 flex items-center justify-between">
+    <div className={`bg-card border border-border rounded-none flex flex-col ${className}`}>
+      <div className="p-4 border-b border-border bg-muted/60 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <ShieldAlert className="w-4 h-4 text-[#FF5C67]" />
-          <h3 className="text-sm font-semibold text-[#F3F6F8]">Recent Critical Alerts</h3>
+          <ShieldAlert className="w-4 h-4 text-red-500" />
+          <h3 className="text-sm font-semibold text-foreground">Recent Critical Alerts</h3>
         </div>
         <Link
           href="/alerts"
-          className="text-xs text-[#37B9FF] hover:underline flex items-center gap-1 font-medium"
+          className="text-xs text-accent hover:underline flex items-center gap-1 font-medium"
         >
           Alert Center <ArrowRight className="w-3 h-3" />
         </Link>
@@ -37,26 +37,26 @@ export function CriticalAlertsList({
 
       <div className="divide-y divide-[#263442] p-2 space-y-1.5 flex-1">
         {criticalAlerts.length === 0 ? (
-          <div className="py-8 text-center text-xs text-[#6E7B87]">No active critical alerts.</div>
+          <div className="py-8 text-center text-xs text-muted-foreground">No active critical alerts.</div>
         ) : (
           criticalAlerts.map((alert) => (
             <div
               key={alert.alertId}
-              className="relative p-3 rounded-[8px] bg-[#0F151C] hover:bg-[#18222C] border-l-2 border-l-[#FF5C67] border border-[#263442] transition-colors flex items-start justify-between gap-3"
+              className="relative p-3 rounded-none bg-[#0F151C] hover:bg-muted border-l-2 border-l-[#FF5C67] border border-border transition-colors flex items-start justify-between gap-3"
             >
               <div className="space-y-1 flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <SeverityBadge severity={alert.severity} />
-                  <span className="text-xs font-mono font-medium text-[#A7B2BD]">{alert.bopId}</span>
-                  <span className="text-[11px] font-mono text-[#6E7B87]">{formatTime(alert.timestamp)}</span>
+                  <span className="text-xs font-mono font-medium text-muted-foreground">{alert.bopId}</span>
+                  <span className="text-[11px] font-mono text-muted-foreground">{formatTime(alert.timestamp)}</span>
                 </div>
-                <p className="text-xs font-medium text-[#F3F6F8] leading-snug truncate">
+                <p className="text-xs font-medium text-foreground leading-snug truncate">
                   {alert.description}
                 </p>
-                <div className="text-[11px] text-[#A7B2BD] flex items-center gap-2">
-                  <span>Camera: <strong className="text-[#F3F6F8] font-mono">{alert.cameraId}</strong></span>
+                <div className="text-[11px] text-muted-foreground flex items-center gap-2">
+                  <span>Camera: <strong className="text-foreground font-mono">{alert.cameraId}</strong></span>
                   <span>•</span>
-                  <span>Threat Score: <strong className="text-[#FF5C67] font-mono">{alert.threatScore}</strong></span>
+                  <span>Threat Score: <strong className="text-red-500 font-mono">{alert.threatScore}</strong></span>
                 </div>
               </div>
 
@@ -64,14 +64,14 @@ export function CriticalAlertsList({
                 {onAcknowledge && alert.status === 'NEW' && (
                   <button
                     onClick={() => onAcknowledge(alert.alertId)}
-                    className="px-2.5 py-1 text-[11px] font-semibold text-[#37B9FF] bg-[#37B9FF]/10 hover:bg-[#37B9FF]/20 border border-[#37B9FF]/30 rounded-[6px] transition-colors"
+                    className="px-2.5 py-1 text-[11px] font-semibold text-accent bg-accent/10 hover:bg-accent/20 border border-[#37B9FF]/30 rounded-none transition-colors"
                   >
                     Acknowledge
                   </button>
                 )}
                 <Link
                   href={`/events/${alert.eventId}`}
-                  className="p-1.5 text-[#6E7B87] hover:text-[#F3F6F8] hover:bg-[#141C24] rounded-[6px] transition-colors"
+                  className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-card rounded-none transition-colors"
                   title="View Event Forensic Details"
                 >
                   <ChevronRight className="w-4 h-4" />

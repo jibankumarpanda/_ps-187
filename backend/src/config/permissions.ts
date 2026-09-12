@@ -64,7 +64,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ],
 
   BOP_OPERATOR: [
-    'camera:read', 'camera:control',
+    'camera:read', 'camera:create', 'camera:update', 'camera:control',
     'event:read', 'event:create',
     'alert:read', 'alert:acknowledge',
     'evidence:read', 'evidence:create',

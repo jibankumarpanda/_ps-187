@@ -89,19 +89,19 @@ export function InvestigationWorkspace({
   return (
     <div className={`grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-[700px] ${className}`}>
       {/* ─── COLUMN 1: INCIDENT / EVENT LIST (3 COLS) ───── */}
-      <div className="lg:col-span-3 bg-[#141C24] border border-[#263442] rounded-[10px] flex flex-col overflow-hidden">
-        <div className="p-3.5 border-b border-[#263442] bg-[#18222C]">
-          <h3 className="text-xs font-bold uppercase tracking-[0.06em] text-[#A7B2BD] mb-2.5">
+      <div className="lg:col-span-3 bg-card border border-border rounded-none flex flex-col overflow-hidden">
+        <div className="p-3.5 border-b border-border bg-muted">
+          <h3 className="text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground mb-2.5">
             Incidents & Events ({filteredEvents.length})
           </h3>
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6E7B87]" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Filter by ID, zone, BOP..."
-              className="w-full bg-[#0F151C] border border-[#263442] rounded-[6px] pl-8 pr-3 h-8 text-xs text-[#F3F6F8] placeholder:text-[#677480] focus:outline-none focus:border-[#37B9FF]"
+              className="w-full bg-[#0F151C] border border-border rounded-none pl-8 pr-3 h-8 text-xs text-foreground placeholder:text-[#677480] focus:outline-none focus:border-[#37B9FF]"
             />
           </div>
         </div>
@@ -114,18 +114,18 @@ export function InvestigationWorkspace({
                 key={evt.eventId}
                 onClick={() => setSelectedEventId(evt.eventId)}
                 className={`p-3 cursor-pointer transition-colors ${
-                  isSelected ? 'bg-[#18222C] border-l-2 border-l-[#37B9FF]' : 'hover:bg-[#17212A]'
+                  isSelected ? 'bg-muted border-l-2 border-l-[#37B9FF]' : 'hover:bg-[#17212A]'
                 }`}
               >
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-mono font-bold text-[#F3F6F8]">{evt.eventId}</span>
+                  <span className="text-xs font-mono font-bold text-foreground">{evt.eventId}</span>
                   <SeverityBadge severity={evt.severity} />
                 </div>
-                <div className="text-[11px] text-[#A7B2BD] flex items-center justify-between">
+                <div className="text-[11px] text-muted-foreground flex items-center justify-between">
                   <span>{evt.bopId} • {evt.zone}</span>
-                  <span className="font-mono text-[#6E7B87]">{formatTime(evt.timestamp)}</span>
+                  <span className="font-mono text-muted-foreground">{formatTime(evt.timestamp)}</span>
                 </div>
-                <div className="text-[10px] font-mono text-[#37B9FF] mt-1">
+                <div className="text-[10px] font-mono text-accent mt-1">
                   Track #{evt.trackId} • Score: {evt.threatScore}
                 </div>
               </div>
@@ -135,20 +135,20 @@ export function InvestigationWorkspace({
       </div>
 
       {/* ─── COLUMN 2: EVIDENCE VIEWER & PLAYBACK (6 COLS) ─── */}
-      <div className="lg:col-span-6 bg-[#141C24] border border-[#263442] rounded-[10px] flex flex-col overflow-hidden">
-        <div className="p-3.5 border-b border-[#263442] bg-[#18222C] flex items-center justify-between">
+      <div className="lg:col-span-6 bg-card border border-border rounded-none flex flex-col overflow-hidden">
+        <div className="p-3.5 border-b border-border bg-muted flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold uppercase tracking-[0.06em] text-[#F3F6F8]">
+            <span className="text-xs font-bold uppercase tracking-[0.06em] text-foreground">
               High-Precision Forensic Playback
             </span>
-            <span className="text-[10px] font-mono text-[#37B9FF] bg-[#37B9FF]/10 px-1.5 py-0.5 rounded border border-[#37B9FF]/20">
+            <span className="text-[10px] font-mono text-accent bg-accent/10 px-1.5 py-0.5 rounded border border-[#37B9FF]/20">
               {selectedEvent?.cameraId}
             </span>
           </div>
-          <div className="flex items-center gap-1 text-[#A7B2BD]">
+          <div className="flex items-center gap-1 text-muted-foreground">
             <button
               onClick={() => setZoomLevel((prev) => Math.max(75, prev - 15))}
-              className="p-1 hover:text-[#F3F6F8] rounded hover:bg-[#0F151C]"
+              className="p-1 hover:text-foreground rounded hover:bg-[#0F151C]"
               title="Zoom Out"
             >
               <ZoomOut className="w-3.5 h-3.5" />
@@ -156,14 +156,14 @@ export function InvestigationWorkspace({
             <span className="text-[10px] font-mono px-1">{zoomLevel}%</span>
             <button
               onClick={() => setZoomLevel((prev) => Math.min(200, prev + 15))}
-              className="p-1 hover:text-[#F3F6F8] rounded hover:bg-[#0F151C]"
+              className="p-1 hover:text-foreground rounded hover:bg-[#0F151C]"
               title="Zoom In"
             >
               <ZoomIn className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => setZoomLevel(100)}
-              className="p-1 hover:text-[#F3F6F8] rounded hover:bg-[#0F151C]"
+              className="p-1 hover:text-foreground rounded hover:bg-[#0F151C]"
               title="Reset Viewport"
             >
               <Maximize2 className="w-3.5 h-3.5" />
@@ -193,7 +193,7 @@ export function InvestigationWorkspace({
 
             {/* Simulated Tracked Target Bounding Box */}
             <div
-              className="absolute border-2 border-[#FF5C67] bg-[#FF5C67]/20 flex flex-col justify-start"
+              className="absolute border-2 border-[#FF5C67] bg-red-500/20 flex flex-col justify-start"
               style={{
                 top: `${30 + (timelineProgress / 100) * 15}%`,
                 left: `${35 + (timelineProgress / 100) * 20}%`,
@@ -201,7 +201,7 @@ export function InvestigationWorkspace({
                 height: '42%',
               }}
             >
-              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 bg-[#FF5C67] text-[#071018] w-max">
+              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 bg-red-500 text-[#071018] w-max">
                 {selectedEvent?.objectType} {(selectedEvent?.confidence * 100).toFixed(0)}% TRK-
                 {selectedEvent?.trackId}
               </span>
@@ -209,25 +209,25 @@ export function InvestigationWorkspace({
           </div>
 
           {/* OSD metadata */}
-          <div className="absolute top-3 left-3 bg-black/75 px-2.5 py-1 rounded text-[10px] font-mono text-[#F3F6F8] border border-white/10 pointer-events-none">
+          <div className="absolute top-3 left-3 bg-black/75 px-2.5 py-1 rounded text-[10px] font-mono text-foreground border border-white/10 pointer-events-none">
             FRAME: #{Math.floor(1000 + timelineProgress * 24)} • REPLAY RATE 1.0X
           </div>
         </div>
 
         {/* Video controls toolbar */}
-        <div className="p-3 bg-[#101820] border-t border-[#263442] space-y-2">
+        <div className="p-3 bg-[#101820] border-t border-border space-y-2">
           {/* Timeline scrubber slider */}
           <div className="flex items-center gap-3">
-            <span className="text-[10px] font-mono text-[#6E7B87]">00:00:00</span>
+            <span className="text-[10px] font-mono text-muted-foreground">00:00:00</span>
             <input
               type="range"
               min="0"
               max="100"
               value={timelineProgress}
               onChange={(e) => setTimelineProgress(Number(e.target.value))}
-              className="w-full h-1 bg-[#263442] rounded-lg appearance-none cursor-pointer accent-[#37B9FF]"
+              className="w-full h-1 bg-[#263442] rounded-none appearance-none cursor-pointer accent-[#37B9FF]"
             />
-            <span className="text-[10px] font-mono text-[#37B9FF]">00:01:24</span>
+            <span className="text-[10px] font-mono text-accent">00:01:24</span>
           </div>
 
           {/* Control buttons */}
@@ -235,44 +235,44 @@ export function InvestigationWorkspace({
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setTimelineProgress((prev) => Math.max(0, prev - 5))}
-                className="p-1.5 rounded text-[#A7B2BD] hover:text-[#F3F6F8] hover:bg-[#18222C]"
+                className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
                 title="Step Back 1 Frame"
               >
                 <SkipBack className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setIsPlaying(!isPlaying)}
-                className="p-2 rounded-[6px] bg-[#37B9FF] text-[#071018] hover:bg-[#37B9FF]/90 font-bold"
+                className="p-2 rounded-none bg-accent text-[#071018] hover:bg-accent/90 font-bold"
                 title={isPlaying ? 'Pause' : 'Play'}
               >
                 {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
               </button>
               <button
                 onClick={() => setTimelineProgress((prev) => Math.min(100, prev + 5))}
-                className="p-1.5 rounded text-[#A7B2BD] hover:text-[#F3F6F8] hover:bg-[#18222C]"
+                className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
                 title="Step Forward 1 Frame"
               >
                 <SkipForward className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="text-xs font-mono text-[#A7B2BD]">
+            <div className="text-xs font-mono text-muted-foreground">
               <span>Event Timestamp: </span>
-              <strong className="text-[#F3F6F8]">{selectedEvent?.timestamp}</strong>
+              <strong className="text-foreground">{selectedEvent?.timestamp}</strong>
             </div>
           </div>
         </div>
       </div>
 
       {/* ─── COLUMN 3: INVESTIGATION DETAILS & NOTES (3 COLS) ─ */}
-      <div className="lg:col-span-3 bg-[#141C24] border border-[#263442] rounded-[10px] flex flex-col overflow-hidden">
-        <div className="p-3.5 border-b border-[#263442] bg-[#18222C] flex items-center justify-between">
-          <h3 className="text-xs font-bold uppercase tracking-[0.06em] text-[#A7B2BD]">
+      <div className="lg:col-span-3 bg-card border border-border rounded-none flex flex-col overflow-hidden">
+        <div className="p-3.5 border-b border-border bg-muted flex items-center justify-between">
+          <h3 className="text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">
             Forensic Case File
           </h3>
           <Link
             href={`/evidence/${selectedEvent?.evidenceId}`}
-            className="text-[11px] font-semibold text-[#37B9FF] hover:underline flex items-center gap-1"
+            className="text-[11px] font-semibold text-accent hover:underline flex items-center gap-1"
           >
             Verify <ArrowUpRight className="w-3 h-3" />
           </Link>
@@ -280,54 +280,54 @@ export function InvestigationWorkspace({
 
         <div className="p-4 space-y-4 flex-1 overflow-y-auto">
           {/* Threat Metric Card */}
-          <div className="p-3 bg-[#0F151C] border border-[#263442] rounded-[8px] space-y-2">
+          <div className="p-3 bg-[#0F151C] border border-border rounded-none space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-[#A7B2BD] font-medium">Threat Assessment</span>
-              <span className="text-sm font-mono font-bold text-[#FF5C67]">
+              <span className="text-xs text-muted-foreground font-medium">Threat Assessment</span>
+              <span className="text-sm font-mono font-bold text-red-500">
                 {selectedEvent?.threatScore} / 100
               </span>
             </div>
-            <div className="w-full bg-[#141C24] h-1.5 rounded-full overflow-hidden border border-[#263442]">
+            <div className="w-full bg-card h-1.5 rounded-full overflow-hidden border border-border">
               <div
-                className="bg-[#FF5C67] h-full"
+                className="bg-red-500 h-full"
                 style={{ width: `${selectedEvent?.threatScore}%` }}
               />
             </div>
-            <div className="text-[11px] text-[#A7B2BD] flex justify-between">
+            <div className="text-[11px] text-muted-foreground flex justify-between">
               <span>Confidence: {(selectedEvent?.confidence * 100).toFixed(0)}%</span>
               <span>Track ID: #{selectedEvent?.trackId}</span>
             </div>
           </div>
 
           {/* Chain of Custody / Blockchain Record */}
-          <div className="p-3 bg-[#0F151C] border border-[#263442] rounded-[8px] space-y-1.5 text-xs font-mono">
-            <div className="text-[10px] uppercase font-bold text-[#39D98A] tracking-wider flex items-center gap-1">
+          <div className="p-3 bg-[#0F151C] border border-border rounded-none space-y-1.5 text-xs font-mono">
+            <div className="text-[10px] uppercase font-bold text-green-500 tracking-wider flex items-center gap-1">
               <FileCheck className="w-3.5 h-3.5" /> Blockchain Integrity
             </div>
-            <div className="flex justify-between text-[#A7B2BD]">
+            <div className="flex justify-between text-muted-foreground">
               <span>Ledger:</span>
-              <span className="text-[#F3F6F8]">Hyperledger Fabric</span>
+              <span className="text-foreground">Hyperledger Fabric</span>
             </div>
-            <div className="flex justify-between text-[#A7B2BD]">
+            <div className="flex justify-between text-muted-foreground">
               <span>Evidence ID:</span>
-              <span className="text-[#37B9FF]">{selectedEvent?.evidenceId}</span>
+              <span className="text-accent">{selectedEvent?.evidenceId}</span>
             </div>
-            <div className="flex justify-between text-[#A7B2BD]">
+            <div className="flex justify-between text-muted-foreground">
               <span>SHA-256:</span>
-              <span className="text-[#F3F6F8]">{truncateHash('a94f2e8b1c3d5e7f9a2b4c6d8e0f1a3b5c7d9e1f3a5b7c9d1e3f5a7b9c1d3e72bc')}</span>
+              <span className="text-foreground">{truncateHash('a94f2e8b1c3d5e7f9a2b4c6d8e0f1a3b5c7d9e1f3a5b7c9d1e3f5a7b9c1d3e72bc')}</span>
             </div>
           </div>
 
           {/* Investigator Notes */}
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-[#A7B2BD] uppercase tracking-wider block">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
               Investigator Audit Log
             </label>
             <div className="space-y-1.5 max-h-40 overflow-y-auto">
               {notes.map((note, idx) => (
                 <div
                   key={idx}
-                  className="p-2 rounded bg-[#0F151C] border border-[#263442] text-[11px] text-[#F3F6F8] leading-relaxed"
+                  className="p-2 rounded bg-[#0F151C] border border-border text-[11px] text-foreground leading-relaxed"
                 >
                   {note}
                 </div>
@@ -340,11 +340,11 @@ export function InvestigationWorkspace({
                 value={currentNote}
                 onChange={(e) => setCurrentNote(e.target.value)}
                 placeholder="Append case note..."
-                className="flex-1 bg-[#0F151C] border border-[#2B3947] rounded-[6px] px-2.5 h-8 text-xs text-[#F3F6F8] focus:border-[#37B9FF] focus:outline-none"
+                className="flex-1 bg-[#0F151C] border border-[#2B3947] rounded-none px-2.5 h-8 text-xs text-foreground focus:border-[#37B9FF] focus:outline-none"
               />
               <button
                 type="submit"
-                className="px-2.5 h-8 bg-[#18222C] hover:bg-[#37B9FF] hover:text-[#071018] border border-[#344454] rounded-[6px] text-[#F3F6F8] transition-colors"
+                className="px-2.5 h-8 bg-muted hover:bg-accent hover:text-[#071018] border border-border rounded-none text-foreground transition-colors"
                 title="Add Note"
               >
                 <Send className="w-3.5 h-3.5" />
@@ -356,14 +356,14 @@ export function InvestigationWorkspace({
           <div className="pt-2 space-y-2">
             <button
               onClick={handleMarkReviewed}
-              className="w-full py-2 bg-[#39D98A]/15 border border-[#39D98A]/40 text-[#39D98A] hover:bg-[#39D98A]/25 rounded-[7px] text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+              className="w-full py-2 bg-[#39D98A]/15 border border-[#39D98A]/40 text-green-500 hover:bg-[#39D98A]/25 rounded-none text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
               Mark Reviewed
             </button>
             <button
               onClick={handleEscalate}
-              className="w-full py-2 bg-[#FF5C67]/15 border border-[#FF5C67]/40 text-[#FF7A83] hover:bg-[#FF5C67]/25 rounded-[7px] text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+              className="w-full py-2 bg-red-500/15 border border-[#FF5C67]/40 text-[#FF7A83] hover:bg-red-500/25 rounded-none text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
             >
               <ShieldAlert className="w-3.5 h-3.5" />
               Escalate Incident

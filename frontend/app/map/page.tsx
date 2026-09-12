@@ -51,9 +51,9 @@ export default function MapPage() {
         actions={
           <button
             onClick={loadData}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] bg-[#18222C] hover:bg-[#1E2A35] border border-[#344454] text-xs font-semibold text-[#F3F6F8] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-muted hover:bg-muted border border-border text-xs font-semibold text-foreground transition-colors"
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-[#37B9FF] ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 text-accent ${isLoading ? 'animate-spin' : ''}`} />
             Refresh Radars
           </button>
         }
@@ -74,15 +74,15 @@ export default function MapPage() {
 
         {/* Side Panel Area */}
         <div className="flex-1 min-w-[300px] flex flex-col gap-4">
-          <div className="bg-[#141C24] border border-[#263442] rounded-[10px] p-4 flex flex-col flex-1 shadow-lg overflow-hidden">
-            <h3 className="text-sm font-bold text-[#F3F6F8] mb-3 flex items-center gap-2">
-              <ShieldAlert className="w-4 h-4 text-[#FF5C67]" />
+          <div className="bg-card border border-border rounded-none p-4 flex flex-col flex-1 shadow-lg overflow-hidden">
+            <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4 text-red-500" />
               Active Tactical Alerts
             </h3>
             
             <div className="flex-1 overflow-y-auto pr-2 space-y-3">
               {activeAlerts.length === 0 ? (
-                <div className="text-sm text-[#A7B2BD] text-center py-8">
+                <div className="text-sm text-muted-foreground text-center py-8">
                   No active alerts in this sector.
                 </div>
               ) : (
@@ -91,19 +91,19 @@ export default function MapPage() {
                   return (
                     <div 
                       key={alert.alertId} 
-                      className="bg-[#18222C] border border-[#344454] rounded-lg p-3 hover:border-[#FF5C67]/50 transition-colors cursor-pointer"
+                      className="bg-muted border border-border rounded-none p-3 hover:border-[#FF5C67]/50 transition-colors cursor-pointer"
                       onClick={() => setSelectedCameraId(alert.cameraId)}
                     >
                       <div className="flex justify-between items-start mb-1">
-                        <span className="text-xs font-bold text-[#FF5C67]">{alert.eventType}</span>
-                        <span className="text-[10px] text-[#A7B2BD] font-mono">{cam?.bopId || 'Unknown'}</span>
+                        <span className="text-xs font-bold text-red-500">{alert.eventType}</span>
+                        <span className="text-[10px] text-muted-foreground font-mono">{cam?.bopId || 'Unknown'}</span>
                       </div>
-                      <p className="text-xs text-[#F3F6F8] mb-2">{alert.description}</p>
+                      <p className="text-xs text-foreground mb-2">{alert.description}</p>
                       <div className="flex justify-between items-center text-[10px]">
-                        <span className="text-[#6E7B87]">{new Date(alert.timestamp).toLocaleTimeString()}</span>
+                        <span className="text-muted-foreground">{new Date(alert.timestamp).toLocaleTimeString()}</span>
                         <Link
                           href={`/cameras/${alert.cameraId}`}
-                          className="text-[#37B9FF] hover:text-[#37B9FF]/80 flex items-center gap-1 font-semibold"
+                          className="text-accent hover:text-accent/80 flex items-center gap-1 font-semibold"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <Eye className="w-3 h-3" /> View Feed
@@ -116,19 +116,19 @@ export default function MapPage() {
             </div>
           </div>
 
-          <div className="bg-[#141C24] border border-[#263442] rounded-[10px] p-4 shadow-lg">
-            <h3 className="text-sm font-bold text-[#F3F6F8] mb-3 flex items-center gap-2">
-              <Radio className="w-4 h-4 text-[#39D98A]" />
+          <div className="bg-card border border-border rounded-none p-4 shadow-lg">
+            <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+              <Radio className="w-4 h-4 text-green-500" />
               Sector Status
             </h3>
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="bg-[#0A0F14] border border-[#263442] rounded p-2 text-center">
-                <div className="text-[#A7B2BD] mb-1">Total BOPs</div>
-                <div className="text-xl font-bold text-[#F3F6F8]">{bops.length}</div>
+              <div className="bg-background border border-border rounded p-2 text-center">
+                <div className="text-muted-foreground mb-1">Total BOPs</div>
+                <div className="text-xl font-bold text-foreground">{bops.length}</div>
               </div>
-              <div className="bg-[#0A0F14] border border-[#263442] rounded p-2 text-center">
-                <div className="text-[#A7B2BD] mb-1">Cameras Online</div>
-                <div className="text-xl font-bold text-[#39D98A]">{cameras.filter(c => c.status === 'ONLINE').length} / {cameras.length}</div>
+              <div className="bg-background border border-border rounded p-2 text-center">
+                <div className="text-muted-foreground mb-1">Cameras Online</div>
+                <div className="text-xl font-bold text-green-500">{cameras.filter(c => c.status === 'ONLINE').length} / {cameras.length}</div>
               </div>
             </div>
           </div>

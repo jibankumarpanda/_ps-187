@@ -26,23 +26,23 @@ interface ThreatOverviewChartProps {
 
 export function ThreatOverviewChart({ data, className = '' }: ThreatOverviewChartProps) {
   return (
-    <div className={`bg-[#141C24] border border-[#263442] rounded-[10px] p-5 flex flex-col ${className}`}>
+    <div className={`bg-card border border-border rounded-none p-5 flex flex-col ${className}`}>
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-sm font-semibold text-[#F3F6F8]">Threat Activity & Severity Trend</h3>
-          <p className="text-xs text-[#A7B2BD] mt-0.5">24-hour border security threat volume overview</p>
+          <h3 className="text-sm font-semibold text-foreground">Threat Activity & Severity Trend</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">24-hour border security threat volume overview</p>
         </div>
         <div className="flex items-center gap-3 text-xs">
-          <div className="flex items-center gap-1.5 text-[#A7B2BD]">
-            <span className="w-2.5 h-2.5 rounded-sm bg-[#FF5C67]" /> Critical
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <span className="w-2.5 h-2.5 rounded-sm bg-red-500" /> Critical
           </div>
-          <div className="flex items-center gap-1.5 text-[#A7B2BD]">
+          <div className="flex items-center gap-1.5 text-muted-foreground">
             <span className="w-2.5 h-2.5 rounded-sm bg-[#FF8A4C]" /> High
           </div>
-          <div className="flex items-center gap-1.5 text-[#A7B2BD]">
+          <div className="flex items-center gap-1.5 text-muted-foreground">
             <span className="w-2.5 h-2.5 rounded-sm bg-[#F4C95D]" /> Medium
           </div>
-          <div className="flex items-center gap-1.5 text-[#A7B2BD]">
+          <div className="flex items-center gap-1.5 text-muted-foreground">
             <span className="w-2.5 h-2.5 rounded-sm bg-[#63A8FF]" /> Low
           </div>
         </div>

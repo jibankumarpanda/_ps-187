@@ -16,7 +16,7 @@ interface AlertTableProps {
 
 export function AlertTable({ alerts, onUpdateStatus, className = '' }: AlertTableProps) {
   return (
-    <div className={`bg-[#141C24] border border-[#263442] rounded-[10px] overflow-hidden ${className}`}>
+    <div className={`bg-card border border-border rounded-none overflow-hidden ${className}`}>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
@@ -34,21 +34,21 @@ export function AlertTable({ alerts, onUpdateStatus, className = '' }: AlertTabl
           <tbody className="divide-y divide-[#25313C]">
             {alerts.map((alert) => (
               <tr key={alert.alertId} className="hover:bg-[#17212A] transition-colors">
-                <td className="px-4 py-3.5 font-mono font-bold text-[#F3F6F8]">
-                  <Link href={`/events/${alert.eventId}`} className="hover:text-[#37B9FF] transition-colors">
+                <td className="px-4 py-3.5 font-mono font-bold text-foreground">
+                  <Link href={`/events/${alert.eventId}`} className="hover:text-accent transition-colors">
                     {alert.alertId}
                   </Link>
                 </td>
                 <td className="px-4 py-3.5">
-                  <div className="font-semibold text-[#F3F6F8]">{alert.eventType}</div>
-                  <div className="text-[11px] text-[#A7B2BD] truncate max-w-xs">{alert.description}</div>
+                  <div className="font-semibold text-foreground">{alert.eventType}</div>
+                  <div className="text-[11px] text-muted-foreground truncate max-w-xs">{alert.description}</div>
                 </td>
                 <td className="px-4 py-3.5">
-                  <div className="font-mono text-[#F3F6F8]">{alert.cameraId}</div>
-                  <div className="text-[11px] text-[#A7B2BD]">{alert.bopId}</div>
+                  <div className="font-mono text-foreground">{alert.cameraId}</div>
+                  <div className="text-[11px] text-muted-foreground">{alert.bopId}</div>
                 </td>
-                <td className="px-4 py-3.5 font-mono text-[#A7B2BD]">{formatTime(alert.timestamp)}</td>
-                <td className="px-4 py-3.5 font-mono font-bold text-[#FF5C67]">
+                <td className="px-4 py-3.5 font-mono text-muted-foreground">{formatTime(alert.timestamp)}</td>
+                <td className="px-4 py-3.5 font-mono font-bold text-red-500">
                   {alert.threatScore} / 100
                 </td>
                 <td className="px-4 py-3.5">
@@ -62,22 +62,22 @@ export function AlertTable({ alerts, onUpdateStatus, className = '' }: AlertTabl
                     {alert.status === 'NEW' && onUpdateStatus && (
                       <button
                         onClick={() => onUpdateStatus(alert.alertId, 'ACKNOWLEDGED')}
-                        className="px-2.5 py-1 text-[11px] font-semibold text-[#37B9FF] bg-[#37B9FF]/10 hover:bg-[#37B9FF]/20 border border-[#37B9FF]/30 rounded-[6px] transition-colors"
+                        className="px-2.5 py-1 text-[11px] font-semibold text-accent bg-accent/10 hover:bg-accent/20 border border-[#37B9FF]/30 rounded-none transition-colors"
                       >
                         Acknowledge
                       </button>
                     )}
                     <Link
                       href={`/investigation?eventId=${alert.eventId}`}
-                      className="px-2.5 py-1 text-[11px] font-semibold text-[#F3F6F8] bg-[#18222C] hover:bg-[#1E2A35] border border-[#344454] rounded-[6px] transition-colors flex items-center gap-1"
+                      className="px-2.5 py-1 text-[11px] font-semibold text-foreground bg-muted hover:bg-muted border border-border rounded-none transition-colors flex items-center gap-1"
                     >
-                      <Search className="w-3 h-3 text-[#37B9FF]" />
+                      <Search className="w-3 h-3 text-accent" />
                       Investigate
                     </Link>
                     {alert.status !== 'RESOLVED' && onUpdateStatus && (
                       <button
                         onClick={() => onUpdateStatus(alert.alertId, 'RESOLVED')}
-                        className="px-2.5 py-1 text-[11px] font-semibold text-[#39D98A] bg-[#39D98A]/10 hover:bg-[#39D98A]/20 border border-[#39D98A]/30 rounded-[6px] transition-colors flex items-center gap-1"
+                        className="px-2.5 py-1 text-[11px] font-semibold text-green-500 bg-[#39D98A]/10 hover:bg-[#39D98A]/20 border border-[#39D98A]/30 rounded-none transition-colors flex items-center gap-1"
                       >
                         <ShieldCheck className="w-3 h-3" />
                         Resolve
@@ -86,7 +86,7 @@ export function AlertTable({ alerts, onUpdateStatus, className = '' }: AlertTabl
                     {alert.status !== 'ESCALATED' && onUpdateStatus && (
                       <button
                         onClick={() => onUpdateStatus(alert.alertId, 'ESCALATED')}
-                        className="px-2 py-1 text-[11px] font-semibold text-[#FF8A4C] hover:text-[#FF5C67] hover:bg-[#FF5C67]/10 rounded-[6px] transition-colors"
+                        className="px-2 py-1 text-[11px] font-semibold text-orange-500 hover:text-red-500 hover:bg-red-500/10 rounded-none transition-colors"
                         title="Escalate Alert to Command Post"
                       >
                         Escalate

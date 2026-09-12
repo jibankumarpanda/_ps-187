@@ -42,26 +42,23 @@ export function StatsCard({
   return (
     <div
       onClick={onClick}
-      className={`relative bg-[#141C24] border border-[#263442] rounded-[10px] p-4 sm:p-5 flex flex-col justify-between transition-all duration-200 ${
-        isCritical ? 'border-t-2 border-t-[#FF5C67]' : ''
-      } ${onClick ? 'cursor-pointer hover:border-[#344454] hover:bg-[#18222C]' : ''} ${className}`}
+      className={`relative bg-card border border-border rounded-none p-6 flex flex-col justify-between transition-all duration-150 ${
+        isCritical ? 'border-t-2 border-t-accent' : ''
+      } ${onClick ? 'cursor-pointer hover:border-accent hover:bg-muted' : ''} ${className}`}
     >
       <div className="flex items-center justify-between gap-2 mb-2">
-        <span className="text-[12px] font-semibold uppercase tracking-[0.04em] text-[#A7B2BD] truncate">
+        <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground truncate font-mono">
           {title}
         </span>
-        <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center border border-[#263442] bg-[#0F151C]"
-          style={{ borderColor: `${indicatorColor}25` }}
-        >
+        <div className="w-8 h-8 flex items-center justify-end text-accent">
           {iconElement}
         </div>
       </div>
 
-      <div className="flex items-baseline gap-2 my-1">
+      <div className="flex items-baseline gap-2 my-2 border-b border-border/50 pb-4">
         <span
-          className={`text-[28px] sm:text-[32px] font-bold tracking-tight text-[#F3F6F8] leading-none ${
-            isCritical ? 'text-[#FF5C67]' : ''
+          className={`text-5xl sm:text-6xl font-bold tracking-tighter text-foreground leading-none font-tight ${
+            isCritical ? 'text-accent' : ''
           }`}
         >
           {value}
@@ -69,18 +66,18 @@ export function StatsCard({
       </div>
 
       {(trend || subtitle) && (
-        <div className="flex items-center justify-between text-xs mt-2 pt-2 border-t border-[#263442]/50">
+        <div className="flex items-center justify-between text-xs mt-2 pt-2 border-t border-border/50">
           {trend && (
             <span
               className={`font-medium ${
-                trend.isPositive ? 'text-[#39D98A]' : 'text-[#FF8A4C]'
+                trend.isPositive ? 'text-green-500' : 'text-orange-500'
               }`}
             >
               {trend.value}
             </span>
           )}
           {subtitle && (
-            <span className="text-[#6E7B87] truncate text-[11px]">{subtitle}</span>
+            <span className="text-muted-foreground truncate text-[11px]">{subtitle}</span>
           )}
         </div>
       )}

@@ -13,7 +13,7 @@ function InvestigationContent() {
 
   if (isLoading) {
     return (
-      <div className="p-12 text-center text-xs text-[#A7B2BD] flex items-center justify-center gap-2">
+      <div className="p-12 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
         <span className="w-4 h-4 border-2 border-[#37B9FF] border-t-transparent rounded-full animate-spin" />
         Loading multi-camera forensic workspace...
       </div>
@@ -33,7 +33,7 @@ export default function InvestigationPage() {
 
       <Suspense
         fallback={
-          <div className="p-12 text-center text-xs text-[#A7B2BD]">
+          <div className="p-12 text-center text-xs text-muted-foreground">
             Initializing investigation environment...
           </div>
         }

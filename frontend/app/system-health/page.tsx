@@ -21,9 +21,9 @@ export default function SystemHealthPage() {
         actions={
           <button
             onClick={refetch}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] bg-[#18222C] hover:bg-[#1E2A35] border border-[#344454] text-xs font-semibold text-[#F3F6F8] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-muted hover:bg-muted border border-border text-xs font-semibold text-foreground transition-colors"
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-[#37B9FF] ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 text-accent ${isLoading ? 'animate-spin' : ''}`} />
             Run Diagnostics
           </button>
         }

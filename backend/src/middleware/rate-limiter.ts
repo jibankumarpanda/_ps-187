@@ -6,7 +6,11 @@ import { config } from '../config';
  */
 export const generalLimiter = rateLimit({
   windowMs: config.rateLimitWindowMs,
-  max: config.rateLimitMaxRequests,
+  max: config.isProduction ? config.rateLimitMaxRequests : 50000,
+  skip: (req) => {
+    // Exempt internal ML worker progress reports and system health checks from rate limiting
+    return req.path.includes('/progress') || req.path.includes('/health') || !config.isProduction;
+  },
   standardHeaders: true,
   legacyHeaders: false,
   message: {

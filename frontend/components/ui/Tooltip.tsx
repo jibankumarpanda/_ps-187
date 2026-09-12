@@ -27,7 +27,7 @@ export function Tooltip({ content, children, position = 'top' }: TooltipProps) {
       {children}
       {isVisible && (
         <div
-          className={`absolute z-50 pointer-events-none whitespace-nowrap bg-[#18222C] border border-[#344454] text-[#F3F6F8] text-[11px] font-medium px-2 py-1 rounded-[6px] shadow-lg ${posClasses} animate-fade-in`}
+          className={`absolute z-50 pointer-events-none whitespace-nowrap bg-muted border border-border text-foreground text-[11px] font-medium px-2 py-1 rounded-none shadow-lg ${posClasses} animate-fade-in`}
         >
           {content}
         </div>

@@ -123,17 +123,17 @@ export default function DashboardPage() {
         subtitle="Real-time border surveillance overview and threat intelligence dashboard"
         actions={
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-[7px] bg-[#141C24] border border-[#263442] text-xs font-mono text-[#A7B2BD]">
-              <Radio className="w-3.5 h-3.5 text-[#39D98A] animate-pulse" />
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-none bg-card border border-border text-xs font-mono text-muted-foreground">
+              <Radio className="w-3.5 h-3.5 text-green-500 animate-pulse" />
               <span>{currentTime}</span>
             </div>
             <button
               onClick={loadData}
               disabled={isLoading}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] bg-[#18222C] hover:bg-[#1E2A35] border border-[#344454] text-xs font-semibold text-[#F3F6F8] transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-muted hover:bg-muted border border-border text-xs font-semibold text-foreground transition-colors"
               title="Refresh telemetry"
             >
-              <RefreshCw className={`w-3.5 h-3.5 text-[#37B9FF] ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 text-accent ${isLoading ? 'animate-spin' : ''}`} />
               Refresh
             </button>
           </div>
@@ -227,8 +227,8 @@ export default function DashboardPage() {
       {/* ─── SECTION 6: BORDER MAP OVERVIEW ─── */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-[#F3F6F8] flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-[#37B9FF]" />
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-accent" />
             Border Outpost Tactical Map & Active Incidents
           </h3>
         </div>

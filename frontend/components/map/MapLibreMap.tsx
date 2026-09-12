@@ -97,7 +97,7 @@ export default function MapLibreMap({
   }, [selectedCameraId, cameras, alerts]);
 
   return (
-    <div className={`relative w-full h-full bg-[#070D12] rounded-[10px] overflow-hidden border border-[#263442] shadow-xl ${className}`}>
+    <div className={`relative w-full h-full bg-[#070D12] rounded-none overflow-hidden border border-border shadow-xl ${className}`}>
       <Map
         ref={mapRef}
         {...viewState}
@@ -118,9 +118,9 @@ export default function MapLibreMap({
           >
             <div className="flex flex-col items-center cursor-pointer transition-transform hover:scale-110">
               <div className="w-8 h-8 rounded-full border border-[#37B9FF]/60 bg-[#0F151C]/90 flex items-center justify-center shadow-[0_0_15px_rgba(55,185,255,0.3)]">
-                <Shield className="w-4 h-4 text-[#37B9FF]" />
+                <Shield className="w-4 h-4 text-accent" />
               </div>
-              <span className="text-[10px] font-mono font-bold text-[#F3F6F8] bg-black/80 px-1.5 py-0.5 rounded border border-[#263442] mt-1 whitespace-nowrap">
+              <span className="text-[10px] font-mono font-bold text-foreground bg-black/80 px-1.5 py-0.5 rounded border border-border mt-1 whitespace-nowrap">
                 {bop.id}
               </span>
             </div>
@@ -152,7 +152,7 @@ export default function MapLibreMap({
             >
               <div className="relative flex items-center justify-center w-8 h-8 group hover:scale-125 transition-transform duration-200 cursor-pointer">
                 {isCritical && (
-                  <span className="absolute w-8 h-8 rounded-full bg-[#FF5C67] opacity-75 animate-ping" />
+                  <span className="absolute w-8 h-8 rounded-full bg-red-500 opacity-75 animate-ping" />
                 )}
                 <div
                   className="w-5 h-5 rounded-full flex items-center justify-center border-2 border-[#0A0F14] shadow-md z-10"
@@ -179,32 +179,32 @@ export default function MapLibreMap({
             <div className="flex flex-col min-w-[240px] p-3">
               <div className="flex items-start justify-between mb-2 pr-4">
                 <div>
-                  <span className="text-sm font-mono font-bold text-[#F3F6F8]">
+                  <span className="text-sm font-mono font-bold text-foreground">
                     {activeMarker.camera.name || activeMarker.camera.id}
                   </span>
-                  <span className="text-xs text-[#A7B2BD] block font-mono mt-0.5">
+                  <span className="text-xs text-muted-foreground block font-mono mt-0.5">
                     {activeMarker.camera.bopId} • {activeMarker.camera.status}
                   </span>
                 </div>
               </div>
 
               {activeMarker.alert ? (
-                <div className="p-2.5 rounded bg-[#FF5C67]/10 border border-[#FF5C67]/30 my-2 text-xs">
-                  <div className="font-bold text-[#FF5C67] flex items-center gap-1.5 mb-1">
+                <div className="p-2.5 rounded bg-red-500/10 border border-[#FF5C67]/30 my-2 text-xs">
+                  <div className="font-bold text-red-500 flex items-center gap-1.5 mb-1">
                     <AlertTriangle className="w-4 h-4" /> {activeMarker.alert.eventType}
                   </div>
-                  <div className="text-[#F3F6F8] text-[11px] leading-relaxed">{activeMarker.alert.description}</div>
+                  <div className="text-foreground text-[11px] leading-relaxed">{activeMarker.alert.description}</div>
                 </div>
               ) : (
-                <div className="text-xs text-[#39D98A] my-2 font-medium bg-[#39D98A]/10 border border-[#39D98A]/20 p-2 rounded">
+                <div className="text-xs text-green-500 my-2 font-medium bg-[#39D98A]/10 border border-[#39D98A]/20 p-2 rounded">
                   Sector Secured • AI Active ({activeMarker.camera.fps} FPS)
                 </div>
               )}
 
-              <div className="flex items-center gap-2 pt-3 mt-1 border-t border-[#263442]">
+              <div className="flex items-center gap-2 pt-3 mt-1 border-t border-border">
                 <Link
                   href={`/cameras/${activeMarker.camera.id}`}
-                  className="flex-1 py-2 bg-[#37B9FF] hover:bg-[#37B9FF]/90 text-[#071018] rounded-[6px] text-xs font-bold text-center transition-colors flex items-center justify-center gap-1.5"
+                  className="flex-1 py-2 bg-accent hover:bg-accent/90 text-[#071018] rounded-none text-xs font-bold text-center transition-colors flex items-center justify-center gap-1.5"
                 >
                   <Eye className="w-4 h-4" />
                   Open Camera Feed

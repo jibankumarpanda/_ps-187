@@ -88,7 +88,7 @@ export function AddWatchlistModal({
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="px-4 py-2 text-xs font-semibold text-[#D8E0E6] bg-[#18222C] border border-[#344454] rounded-[7px] hover:bg-[#1E2A35]"
+            className="px-4 py-2 text-xs font-semibold text-[#D8E0E6] bg-muted border border-border rounded-none hover:bg-muted"
           >
             Cancel
           </button>
@@ -96,7 +96,7 @@ export function AddWatchlistModal({
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="px-4 py-2 text-xs font-bold text-[#071018] bg-[#37B9FF] hover:bg-[#37B9FF]/90 rounded-[7px] flex items-center gap-1.5"
+            className="px-4 py-2 text-xs font-bold text-[#071018] bg-accent hover:bg-accent/90 rounded-none flex items-center gap-1.5"
           >
             {isSubmitting ? 'Registering...' : 'Add to Watchlist'}
           </button>
@@ -107,22 +107,22 @@ export function AddWatchlistModal({
         {activeTab === 'persons' ? (
           <>
             <div>
-              <label className="text-xs font-semibold text-[#A7B2BD] block mb-1">Target Name / Alias</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">Target Name / Alias</label>
               <input
                 type="text"
                 required
                 value={personForm.name}
                 onChange={(e) => setPersonForm({ ...personForm, name: e.target.value })}
                 placeholder="e.g. Subject Fox-1"
-                className="w-full bg-[#0F151C] border border-[#2B3947] rounded-[7px] px-3 h-10 text-xs text-[#F3F6F8] focus:border-[#37B9FF] focus:outline-none"
+                className="w-full bg-[#0F151C] border border-[#2B3947] rounded-none px-3 h-10 text-xs text-foreground focus:border-[#37B9FF] focus:outline-none"
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-[#A7B2BD] block mb-1">Priority Classification</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">Priority Classification</label>
               <select
                 value={personForm.category}
                 onChange={(e) => setPersonForm({ ...personForm, category: e.target.value })}
-                className="w-full bg-[#0F151C] border border-[#2B3947] rounded-[7px] px-3 h-10 text-xs text-[#F3F6F8] focus:border-[#37B9FF] focus:outline-none cursor-pointer"
+                className="w-full bg-[#0F151C] border border-[#2B3947] rounded-none px-3 h-10 text-xs text-foreground focus:border-[#37B9FF] focus:outline-none cursor-pointer"
               >
                 <option value="HIGH PRIORITY">HIGH PRIORITY</option>
                 <option value="MEDIUM PRIORITY">MEDIUM PRIORITY</option>
@@ -130,13 +130,13 @@ export function AddWatchlistModal({
               </select>
             </div>
             <div>
-              <label className="text-xs font-semibold text-[#A7B2BD] block mb-1">Case Notes / Reason for Watch</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">Case Notes / Reason for Watch</label>
               <textarea
                 rows={3}
                 value={personForm.description}
                 onChange={(e) => setPersonForm({ ...personForm, description: e.target.value })}
                 placeholder="Reason for inclusion in border surveillance monitor..."
-                className="w-full bg-[#0F151C] border border-[#2B3947] rounded-[7px] p-3 text-xs text-[#F3F6F8] focus:border-[#37B9FF] focus:outline-none"
+                className="w-full bg-[#0F151C] border border-[#2B3947] rounded-none p-3 text-xs text-foreground focus:border-[#37B9FF] focus:outline-none"
               />
             </div>
           </>
@@ -144,22 +144,22 @@ export function AddWatchlistModal({
           <>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold text-[#A7B2BD] block mb-1">License Plate Number</label>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">License Plate Number</label>
                 <input
                   type="text"
                   required
                   value={vehicleForm.numberPlate}
                   onChange={(e) => setVehicleForm({ ...vehicleForm, numberPlate: e.target.value.toUpperCase() })}
                   placeholder="e.g. RJ-14-XY-9876"
-                  className="w-full bg-[#0F151C] border border-[#2B3947] rounded-[7px] px-3 h-10 text-xs text-[#F3F6F8] font-mono focus:border-[#37B9FF] focus:outline-none uppercase"
+                  className="w-full bg-[#0F151C] border border-[#2B3947] rounded-none px-3 h-10 text-xs text-foreground font-mono focus:border-[#37B9FF] focus:outline-none uppercase"
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-[#A7B2BD] block mb-1">Vehicle Classification</label>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Vehicle Classification</label>
                 <select
                   value={vehicleForm.vehicleType}
                   onChange={(e) => setVehicleForm({ ...vehicleForm, vehicleType: e.target.value })}
-                  className="w-full bg-[#0F151C] border border-[#2B3947] rounded-[7px] px-3 h-10 text-xs text-[#F3F6F8] focus:border-[#37B9FF] focus:outline-none cursor-pointer"
+                  className="w-full bg-[#0F151C] border border-[#2B3947] rounded-none px-3 h-10 text-xs text-foreground focus:border-[#37B9FF] focus:outline-none cursor-pointer"
                 >
                   <option value="SUV">SUV</option>
                   <option value="Truck">Heavy Commercial Truck</option>
@@ -170,11 +170,11 @@ export function AddWatchlistModal({
               </div>
             </div>
             <div>
-              <label className="text-xs font-semibold text-[#A7B2BD] block mb-1">Priority Classification</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">Priority Classification</label>
               <select
                 value={vehicleForm.category}
                 onChange={(e) => setVehicleForm({ ...vehicleForm, category: e.target.value })}
-                className="w-full bg-[#0F151C] border border-[#2B3947] rounded-[7px] px-3 h-10 text-xs text-[#F3F6F8] focus:border-[#37B9FF] focus:outline-none cursor-pointer"
+                className="w-full bg-[#0F151C] border border-[#2B3947] rounded-none px-3 h-10 text-xs text-foreground focus:border-[#37B9FF] focus:outline-none cursor-pointer"
               >
                 <option value="HIGH PRIORITY">HIGH PRIORITY</option>
                 <option value="MEDIUM PRIORITY">MEDIUM PRIORITY</option>

@@ -67,7 +67,7 @@ export function DataTable<T extends Record<string, any>>({
   const paginatedData = sortedData.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <div className={`bg-[#141C24] border border-[#263442] rounded-[10px] overflow-hidden flex flex-col ${className}`}>
+    <div className={`bg-card border border-border rounded-none overflow-hidden flex flex-col ${className}`}>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm border-collapse">
           <thead>
@@ -77,18 +77,18 @@ export function DataTable<T extends Record<string, any>>({
                   key={col.key}
                   onClick={() => col.sortable && handleSort(col.key)}
                   className={`px-4 py-3.5 select-none ${
-                    col.sortable ? 'cursor-pointer hover:text-[#F3F6F8]' : ''
+                    col.sortable ? 'cursor-pointer hover:text-foreground' : ''
                   } ${col.className || ''}`}
                 >
                   <div className="flex items-center gap-1.5">
                     <span>{col.header}</span>
                     {col.sortable && (
-                      <span className="text-[#6E7B87]">
+                      <span className="text-muted-foreground">
                         {sortKey === col.key ? (
                           sortDir === 'asc' ? (
-                            <ArrowUp className="w-3 h-3 text-[#37B9FF]" />
+                            <ArrowUp className="w-3 h-3 text-accent" />
                           ) : (
-                            <ArrowDown className="w-3 h-3 text-[#37B9FF]" />
+                            <ArrowDown className="w-3 h-3 text-accent" />
                           )
                         ) : (
                           <ArrowUpDown className="w-3 h-3 opacity-50" />
@@ -103,7 +103,7 @@ export function DataTable<T extends Record<string, any>>({
           <tbody className="divide-y divide-[#25313C]">
             {paginatedData.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-4 py-12 text-center text-sm text-[#6E7B87]">
+                <td colSpan={columns.length} className="px-4 py-12 text-center text-sm text-muted-foreground">
                   {emptyMessage}
                 </td>
               </tr>
@@ -117,7 +117,7 @@ export function DataTable<T extends Record<string, any>>({
                   }`}
                 >
                   {columns.map((col) => (
-                    <td key={col.key} className={`px-4 py-3.5 text-[#F3F6F8] ${col.className || ''}`}>
+                    <td key={col.key} className={`px-4 py-3.5 text-foreground ${col.className || ''}`}>
                       {col.render ? col.render(item) : item[col.key]}
                     </td>
                   ))}

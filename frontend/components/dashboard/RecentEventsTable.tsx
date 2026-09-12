@@ -17,22 +17,22 @@ export function RecentEventsTable({ events, className = '' }: RecentEventsTableP
   const recentEvents = events.slice(0, 5);
 
   const getIcon = (type: string) => {
-    if (type.includes('PERSON') || type === 'INTRUSION') return <User className="w-3.5 h-3.5 text-[#37B9FF]" />;
+    if (type.includes('PERSON') || type === 'INTRUSION') return <User className="w-3.5 h-3.5 text-accent" />;
     if (type.includes('VEHICLE') || type === 'ANPR_MATCH') return <Car className="w-3.5 h-3.5 text-[#F4C95D]" />;
-    if (type.includes('FACE')) return <ScanFace className="w-3.5 h-3.5 text-[#39D98A]" />;
-    return <AlertTriangle className="w-3.5 h-3.5 text-[#FF8A4C]" />;
+    if (type.includes('FACE')) return <ScanFace className="w-3.5 h-3.5 text-green-500" />;
+    return <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />;
   };
 
   return (
-    <div className={`bg-[#141C24] border border-[#263442] rounded-[10px] overflow-hidden flex flex-col ${className}`}>
-      <div className="p-4 border-b border-[#263442] bg-[#18222C]/60 flex items-center justify-between">
+    <div className={`bg-card border border-border rounded-none overflow-hidden flex flex-col ${className}`}>
+      <div className="p-4 border-b border-border bg-muted/60 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Activity className="w-4 h-4 text-[#37B9FF]" />
-          <h3 className="text-sm font-semibold text-[#F3F6F8]">Recent AI Surveillance Events</h3>
+          <Activity className="w-4 h-4 text-accent" />
+          <h3 className="text-sm font-semibold text-foreground">Recent AI Surveillance Events</h3>
         </div>
         <Link
           href="/events"
-          className="text-xs text-[#37B9FF] hover:underline flex items-center gap-1 font-medium"
+          className="text-xs text-accent hover:underline flex items-center gap-1 font-medium"
         >
           All Events <ArrowRight className="w-3 h-3" />
         </Link>
@@ -56,22 +56,22 @@ export function RecentEventsTable({ events, className = '' }: RecentEventsTableP
                 className="hover:bg-[#17212A] transition-colors cursor-pointer group"
                 onClick={() => (window.location.href = `/events/${evt.eventId}`)}
               >
-                <td className="px-4 py-3 font-mono font-medium text-[#37B9FF] group-hover:underline">
+                <td className="px-4 py-3 font-mono font-medium text-accent group-hover:underline">
                   {evt.eventId}
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-1.5 text-[#F3F6F8] font-medium">
+                  <div className="flex items-center gap-1.5 text-foreground font-medium">
                     {getIcon(evt.eventType)}
                     <span>{EVENT_TYPE_LABELS[evt.eventType] || evt.eventType}</span>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-[#A7B2BD]">
-                  <span className="font-mono text-[#F3F6F8] font-medium">{evt.bopId}</span> • {evt.cameraId}
+                <td className="px-4 py-3 text-muted-foreground">
+                  <span className="font-mono text-foreground font-medium">{evt.bopId}</span> • {evt.cameraId}
                 </td>
                 <td className="px-4 py-3">
                   <SeverityBadge severity={evt.severity} />
                 </td>
-                <td className="px-4 py-3 font-mono text-[#A7B2BD]">{formatTime(evt.timestamp)}</td>
+                <td className="px-4 py-3 font-mono text-muted-foreground">{formatTime(evt.timestamp)}</td>
               </tr>
             ))}
           </tbody>

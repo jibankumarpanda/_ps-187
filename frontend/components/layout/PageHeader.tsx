@@ -19,12 +19,12 @@ export function PageHeader({
   className = '',
 }: PageHeaderProps) {
   return (
-    <div className={`space-y-2 mb-6 ${className}`}>
+    <div className={`space-y-6 mb-12 border-b border-border pb-8 ${className}`}>
       {breadcrumbs && <Breadcrumbs items={breadcrumbs} className="mb-2" />}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-[#F3F6F8] tracking-tight">{title}</h1>
-          {subtitle && <p className="text-sm text-[#A7B2BD] mt-0.5">{subtitle}</p>}
+        <div className="border-l-4 border-accent pl-6 py-2">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold font-tight text-foreground tracking-tighter uppercase">{title}</h1>
+          {subtitle && <p className="text-base md:text-lg text-muted-foreground mt-4 max-w-2xl">{subtitle}</p>}
         </div>
         {actions && <div className="flex items-center gap-3 flex-wrap">{actions}</div>}
       </div>

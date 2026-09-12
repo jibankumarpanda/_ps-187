@@ -8,3 +8,5 @@ PyYAML>=6,<7
 torch>=2.2
 ultralytics>=8.3,<9
 paddleocr>=2.8,<3
+bullmq
+requests

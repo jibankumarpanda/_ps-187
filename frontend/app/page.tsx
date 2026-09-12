@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Shield, ArrowRight, Video, Lock, Radio, Activity } from 'lucide-react';
 import './landing.css';
 import { 
@@ -15,6 +16,7 @@ import {
   AdditionalSections, 
   LandingFooter 
 } from './components/landing/LandingSections';
+import { TacticalImageStack } from './components/landing/TacticalImageStack';
 
 export default function LandingPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -85,28 +87,26 @@ export default function LandingPage() {
 
   return (
     <div className="landing-container">
-      {/* ─── FULL BLEED BACKGROUND VIDEO ─── */}
-      <div className="landing-bg">
-        <video
-          className="landing-bg-video"
-          autoPlay
-          muted
-          loop
-          playsInline
-        >
-          <source
-            src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260809_012548_ef22562c-c0ae-4816-ad9d-f8922af4e6a7.mp4"
-            type="video/mp4"
-          />
-        </video>
-        <div className="landing-overlay" />
-      </div>
-
       <main className="landing-page">
+        {/* ─── HERO BACKGROUND VIDEO ─── */}
+        <div className="landing-bg" aria-hidden="true">
+          <video
+            className="landing-bg-video"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+          >
+            <source src="/landing.webm" type="video/webm" />
+          </video>
+          <div className="landing-overlay" />
+        </div>
+
         {/* ─── FLOATING PILL HEADER ─── */}
         <header className="landing-header">
           <Link href="/" className="landing-logo overflow-hidden flex items-center justify-center p-1" aria-label="IBVAP Home">
-            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
+            <Image src="/logo.png" alt="Logo" width={40} height={40} className="w-full h-full object-contain" priority />
           </Link>
 
           <nav className="landing-nav-pill landing-desktop-nav">
@@ -131,7 +131,7 @@ export default function LandingPage() {
 
           {/* Mobile hamburger */}
           <button
-            className="landing-mobile-only p-2.5 rounded-full bg-[#141C24] text-white border border-[#263442]"
+            className="landing-mobile-only p-2.5 rounded-full bg-card text-white border border-border"
             onClick={toggleMenu}
             aria-label="Toggle Navigation Menu"
           >
@@ -153,17 +153,17 @@ export default function LandingPage() {
             <div className="landing-avatars">
               <div className="landing-avatar a1">
                 <div className="inner">
-                  <Radio className="w-3 h-3 text-[#37B9FF]" />
+                  <Radio className="w-3 h-3 text-accent" />
                 </div>
               </div>
               <div className="landing-avatar a2">
                 <div className="inner">
-                  <Shield className="w-3 h-3 text-[#39D98A]" />
+                  <Shield className="w-3 h-3 text-green-500" />
                 </div>
               </div>
               <div className="landing-avatar a3">
                 <div className="inner">
-                  <Activity className="w-3 h-3 text-[#FF5C67]" />
+                  <Activity className="w-3 h-3 text-red-500" />
                 </div>
               </div>
               <div className="landing-trust-pill">
@@ -179,7 +179,7 @@ export default function LandingPage() {
             </span>
             <br />
             <span
-              className="line text-[#37B9FF]"
+              className="line text-accent"
               style={{ '--d': '0.28s' } as React.CSSProperties}
             >
               Designed To Protect
@@ -215,7 +215,7 @@ export default function LandingPage() {
               <span className="landing-count" data-target="120" data-decimals="0">
                 120
               </span>
-              <span className="text-sm font-normal text-[#A7B2BD]">ms</span>
+              <span className="text-sm font-normal text-muted-foreground">ms</span>
             </div>
             <div className="landing-stat-label">Inference Latency</div>
           </div>
@@ -225,7 +225,7 @@ export default function LandingPage() {
               <span className="landing-count" data-target="99.99" data-decimals="2">
                 99.99
               </span>
-              <span className="text-sm font-normal text-[#A7B2BD]">%</span>
+              <span className="text-sm font-normal text-muted-foreground">%</span>
             </div>
             <div className="landing-stat-label">Platform Uptime</div>
           </div>
@@ -235,7 +235,7 @@ export default function LandingPage() {
               <span className="landing-count" data-target="24" data-decimals="0">
                 24
               </span>
-              <span className="text-sm font-normal text-[#A7B2BD]">/7</span>
+              <span className="text-sm font-normal text-muted-foreground">/7</span>
             </div>
             <div className="landing-stat-label">Autonomous Watch</div>
           </div>
@@ -245,12 +245,15 @@ export default function LandingPage() {
               <span className="landing-count" data-target="30" data-decimals="0">
                 30
               </span>
-              <span className="text-sm font-normal text-[#37B9FF]">+</span>
+              <span className="text-sm font-normal text-accent">+</span>
             </div>
             <div className="landing-stat-label">CCTV Nodes Monitored</div>
           </div>
         </footer>
       </main>
+
+      {/* TACTICAL RECONNAISSANCE IMAGE STACK */}
+      <TacticalImageStack />
 
       {/* NEW MARKETING SECTIONS */}
       <ProblemSection />
@@ -269,40 +272,40 @@ export default function LandingPage() {
           className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col p-6 animate-fade-in"
           onClick={() => setIsMenuOpen(false)}
         >
-          <div className="flex justify-between items-center pb-6 border-b border-[#263442]">
+          <div className="flex justify-between items-center pb-6 border-b border-border">
             <div className="flex items-center gap-2 text-white font-bold">
-              <div className="w-7 h-7 rounded-md bg-[#37B9FF]/15 border border-[#37B9FF]/30 flex items-center justify-center overflow-hidden">
-                <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
+              <div className="w-7 h-7 rounded-none bg-accent/15 border border-[#37B9FF]/30 flex items-center justify-center overflow-hidden">
+                <Image src="/logo.png" alt="Logo" width={28} height={28} className="w-full h-full object-cover" />
               </div>
               <span>IBVAP Command</span>
             </div>
             <button
               onClick={() => setIsMenuOpen(false)}
-              className="text-[#A7B2BD] hover:text-white p-2"
+              className="text-muted-foreground hover:text-white p-2"
             >
               ✕
             </button>
           </div>
 
           <div className="flex flex-col gap-4 py-8 text-base font-semibold">
-            <Link href="/" className="text-white hover:text-[#37B9FF]">
+            <Link href="/" className="text-white hover:text-accent">
               Overview
             </Link>
-            <Link href="/live" className="text-white hover:text-[#37B9FF]">
+            <Link href="/live" className="text-white hover:text-accent">
               Live Feed
             </Link>
-            <Link href="/map" className="text-white hover:text-[#37B9FF]">
+            <Link href="/map" className="text-white hover:text-accent">
               Border Map
             </Link>
-            <Link href="/evidence" className="text-white hover:text-[#37B9FF]">
+            <Link href="/evidence" className="text-white hover:text-accent">
               Blockchain Ledger
             </Link>
           </div>
 
-          <div className="mt-auto pt-6 border-t border-[#263442]">
+          <div className="mt-auto pt-6 border-t border-border">
             <Link
               href="/login"
-              className="w-full py-3 bg-[#37B9FF] text-[#071018] rounded-xl font-bold flex items-center justify-center gap-2"
+              className="w-full py-3 bg-accent text-[#071018] rounded-none font-bold flex items-center justify-center gap-2"
             >
               <Lock className="w-4 h-4" />
               Sign In to Command Center

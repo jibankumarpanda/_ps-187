@@ -21,6 +21,7 @@ import watchlistRoutes from './routes/watchlist.routes';
 import analyticsRoutes from './routes/analytics.routes';
 import systemRoutes from './routes/system.routes';
 import aiRoutes from './routes/ai.routes';
+import videoRoutes from './routes/video.routes';
 
 const app = express();
 
@@ -53,6 +54,7 @@ app.use('/api/watchlist', watchlistRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/videos', videoRoutes);
 
 // Error Handler
 app.use(errorHandler);

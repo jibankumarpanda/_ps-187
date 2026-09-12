@@ -13,7 +13,7 @@ interface WatchlistPersonTableProps {
 
 export function WatchlistPersonTable({ persons, className = '' }: WatchlistPersonTableProps) {
   return (
-    <div className={`bg-[#141C24] border border-[#263442] rounded-[10px] overflow-hidden ${className}`}>
+    <div className={`bg-card border border-border rounded-none overflow-hidden ${className}`}>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
@@ -30,32 +30,32 @@ export function WatchlistPersonTable({ persons, className = '' }: WatchlistPerso
           <tbody className="divide-y divide-[#25313C]">
             {persons.map((person) => (
               <tr key={person.referenceId} className="hover:bg-[#17212A] transition-colors">
-                <td className="px-4 py-3.5 font-mono font-bold text-[#37B9FF]">
+                <td className="px-4 py-3.5 font-mono font-bold text-accent">
                   {person.referenceId}
                 </td>
-                <td className="px-4 py-3.5 font-semibold text-[#F3F6F8]">
+                <td className="px-4 py-3.5 font-semibold text-foreground">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-[#18222C] border border-[#344454] flex items-center justify-center text-[#A7B2BD]">
+                    <div className="w-6 h-6 rounded-full bg-muted border border-border flex items-center justify-center text-muted-foreground">
                       <User className="w-3.5 h-3.5" />
                     </div>
                     <span>{person.name}</span>
                   </div>
                 </td>
                 <td className="px-4 py-3.5">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-[#FF5C67]/15 text-[#FF5C67] border border-[#FF5C67]/30">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-red-500/15 text-red-500 border border-[#FF5C67]/30">
                     {person.category}
                   </span>
                 </td>
                 <td className="px-4 py-3.5">
                   <StatusBadge status={person.status} />
                 </td>
-                <td className="px-4 py-3.5 font-mono text-[#F3F6F8]">
+                <td className="px-4 py-3.5 font-mono text-foreground">
                   {person.lastMatch ? formatTimestamp(person.lastMatch) : '— No Match Yet —'}
                 </td>
-                <td className="px-4 py-3.5 font-mono text-[#A7B2BD]">
+                <td className="px-4 py-3.5 font-mono text-muted-foreground">
                   {formatTimestamp(person.addedAt)}
                 </td>
-                <td className="px-4 py-3.5 text-[#A7B2BD] font-medium">{person.addedBy}</td>
+                <td className="px-4 py-3.5 text-muted-foreground font-medium">{person.addedBy}</td>
               </tr>
             ))}
           </tbody>

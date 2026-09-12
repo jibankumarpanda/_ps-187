@@ -63,9 +63,9 @@ export default function AlertsPage() {
         actions={
           <button
             onClick={refetch}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] bg-[#18222C] hover:bg-[#1E2A35] border border-[#344454] text-xs font-semibold text-[#F3F6F8] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-muted hover:bg-muted border border-border text-xs font-semibold text-foreground transition-colors"
           >
-            <RefreshCw className="w-3.5 h-3.5 text-[#37B9FF]" />
+            <RefreshCw className="w-3.5 h-3.5 text-accent" />
             Refresh
           </button>
         }
@@ -75,71 +75,71 @@ export default function AlertsPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div
           onClick={() => setSeverityFilter(severityFilter === 'CRITICAL' ? '' : 'CRITICAL')}
-          className={`p-4 rounded-[10px] bg-[#141C24] border cursor-pointer transition-all ${
-            severityFilter === 'CRITICAL' ? 'border-[#FF5C67] ring-1 ring-[#FF5C67]' : 'border-[#263442] hover:border-[#344454]'
+          className={`p-4 rounded-none bg-card border cursor-pointer transition-all ${
+            severityFilter === 'CRITICAL' ? 'border-[#FF5C67] ring-1 ring-[#FF5C67]' : 'border-border hover:border-border'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#FF5C67]">Critical</span>
-            <span className="w-2.5 h-2.5 rounded-full bg-[#FF5C67] animate-pulse" />
+            <span className="text-xs font-bold uppercase tracking-wider text-red-500">Critical</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
           </div>
-          <div className="text-2xl font-bold font-mono text-[#F3F6F8] mt-2">{criticalCount}</div>
-          <span className="text-[11px] text-[#A7B2BD]">Requires immediate action</span>
+          <div className="text-2xl font-bold font-mono text-foreground mt-2">{criticalCount}</div>
+          <span className="text-[11px] text-muted-foreground">Requires immediate action</span>
         </div>
 
         <div
           onClick={() => setSeverityFilter(severityFilter === 'HIGH' ? '' : 'HIGH')}
-          className={`p-4 rounded-[10px] bg-[#141C24] border cursor-pointer transition-all ${
-            severityFilter === 'HIGH' ? 'border-[#FF8A4C] ring-1 ring-[#FF8A4C]' : 'border-[#263442] hover:border-[#344454]'
+          className={`p-4 rounded-none bg-card border cursor-pointer transition-all ${
+            severityFilter === 'HIGH' ? 'border-[#FF8A4C] ring-1 ring-[#FF8A4C]' : 'border-border hover:border-border'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#FF8A4C]">High</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-orange-500">High</span>
             <span className="w-2.5 h-2.5 rounded-full bg-[#FF8A4C]" />
           </div>
-          <div className="text-2xl font-bold font-mono text-[#F3F6F8] mt-2">{highCount}</div>
-          <span className="text-[11px] text-[#A7B2BD]">Priority watch alerts</span>
+          <div className="text-2xl font-bold font-mono text-foreground mt-2">{highCount}</div>
+          <span className="text-[11px] text-muted-foreground">Priority watch alerts</span>
         </div>
 
         <div
           onClick={() => setSeverityFilter(severityFilter === 'MEDIUM' ? '' : 'MEDIUM')}
-          className={`p-4 rounded-[10px] bg-[#141C24] border cursor-pointer transition-all ${
-            severityFilter === 'MEDIUM' ? 'border-[#F4C95D] ring-1 ring-[#F4C95D]' : 'border-[#263442] hover:border-[#344454]'
+          className={`p-4 rounded-none bg-card border cursor-pointer transition-all ${
+            severityFilter === 'MEDIUM' ? 'border-[#F4C95D] ring-1 ring-[#F4C95D]' : 'border-border hover:border-border'
           }`}
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-[#F4C95D]">Medium</span>
             <span className="w-2.5 h-2.5 rounded-full bg-[#F4C95D]" />
           </div>
-          <div className="text-2xl font-bold font-mono text-[#F3F6F8] mt-2">{mediumCount}</div>
-          <span className="text-[11px] text-[#A7B2BD]">Standard perimeter events</span>
+          <div className="text-2xl font-bold font-mono text-foreground mt-2">{mediumCount}</div>
+          <span className="text-[11px] text-muted-foreground">Standard perimeter events</span>
         </div>
 
         <div
           onClick={() => setSeverityFilter(severityFilter === 'LOW' ? '' : 'LOW')}
-          className={`p-4 rounded-[10px] bg-[#141C24] border cursor-pointer transition-all ${
-            severityFilter === 'LOW' ? 'border-[#63A8FF] ring-1 ring-[#63A8FF]' : 'border-[#263442] hover:border-[#344454]'
+          className={`p-4 rounded-none bg-card border cursor-pointer transition-all ${
+            severityFilter === 'LOW' ? 'border-[#63A8FF] ring-1 ring-[#63A8FF]' : 'border-border hover:border-border'
           }`}
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-[#63A8FF]">Low</span>
             <span className="w-2.5 h-2.5 rounded-full bg-[#63A8FF]" />
           </div>
-          <div className="text-2xl font-bold font-mono text-[#F3F6F8] mt-2">{lowCount}</div>
-          <span className="text-[11px] text-[#A7B2BD]">Informational detections</span>
+          <div className="text-2xl font-bold font-mono text-foreground mt-2">{lowCount}</div>
+          <span className="text-[11px] text-muted-foreground">Informational detections</span>
         </div>
       </div>
 
       {/* ─── FILTERS & SEARCH (Section 27) ─── */}
-      <div className="bg-[#141C24] border border-[#263442] rounded-[10px] p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+      <div className="bg-card border border-border rounded-none p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6E7B87]" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search alerts by description, camera, BOP..."
-            className="w-full bg-[#0F151C] border border-[#263442] rounded-[7px] pl-9 pr-4 h-9 text-xs text-[#F3F6F8] placeholder:text-[#677480] focus:border-[#37B9FF] focus:outline-none"
+            className="w-full bg-[#0F151C] border border-border rounded-none pl-9 pr-4 h-9 text-xs text-foreground placeholder:text-[#677480] focus:border-[#37B9FF] focus:outline-none"
           />
         </div>
 

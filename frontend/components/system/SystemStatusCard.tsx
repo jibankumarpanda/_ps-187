@@ -11,9 +11,9 @@ interface HardwareMonitorProps {
 
 export function SystemStatusCard({ metrics, className = '' }: HardwareMonitorProps) {
   const getMeterColor = (pct: number) => {
-    if (pct > 85) return 'bg-[#FF5C67]';
+    if (pct > 85) return 'bg-red-500';
     if (pct > 70) return 'bg-[#F4C95D]';
-    return 'bg-[#37B9FF]';
+    return 'bg-accent';
   };
 
   const meters = [
@@ -30,23 +30,23 @@ export function SystemStatusCard({ metrics, className = '' }: HardwareMonitorPro
         return (
           <div
             key={meter.label}
-            className="bg-[#141C24] border border-[#263442] rounded-[10px] p-4 flex flex-col justify-between"
+            className="bg-card border border-border rounded-none p-4 flex flex-col justify-between"
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#A7B2BD]">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
                 {meter.label}
               </span>
-              <Icon className="w-4 h-4 text-[#37B9FF]" />
+              <Icon className="w-4 h-4 text-accent" />
             </div>
 
             <div className="my-2">
-              <div className="text-2xl font-bold font-mono text-[#F3F6F8]">
+              <div className="text-2xl font-bold font-mono text-foreground">
                 {meter.value}
-                <span className="text-xs font-normal text-[#A7B2BD] ml-0.5">{meter.unit}</span>
+                <span className="text-xs font-normal text-muted-foreground ml-0.5">{meter.unit}</span>
               </div>
             </div>
 
-            <div className="w-full h-1.5 bg-[#0F151C] rounded-full overflow-hidden border border-[#263442] mt-1">
+            <div className="w-full h-1.5 bg-[#0F151C] rounded-full overflow-hidden border border-border mt-1">
               <div
                 className={`h-full transition-all duration-500 ${getMeterColor(meter.value)}`}
                 style={{ width: `${meter.value}%` }}
