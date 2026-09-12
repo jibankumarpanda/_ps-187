@@ -12,10 +12,14 @@ loitering_seconds: 60
 process_every_n_frames: 1
 ocr_threshold: 0.5
 face_cascade_path: null
+face_gallery_dir: data/faces
+face_model_path: .insightface/buffalo_l/w600k_r50.onnx
+face_recognition_threshold: 0.45
 restricted_zones: {}
 enabled_modules:
   tracking: true
   anpr: false
-  face: false
+  face: true
+  face_recognition: true
   intrusion: true
   activity: true

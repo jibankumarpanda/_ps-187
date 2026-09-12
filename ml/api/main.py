@@ -22,6 +22,7 @@ try:
 	from ml.src.detector import YOLODetector, select_device
 	from ml.src.events import EventManager
 	from ml.src.face import FaceDetector
+	from ml.src.face_recognition import FaceRecognizer
 	from ml.src.intrusion import VirtualFence
 	from ml.src.pipeline import VideoPipeline
 	from ml.src.tracker import ObjectTracker
@@ -33,6 +34,7 @@ except ModuleNotFoundError:
 	from src.detector import YOLODetector, select_device
 	from src.events import EventManager
 	from src.face import FaceDetector
+	from src.face_recognition import FaceRecognizer
 	from src.intrusion import VirtualFence
 	from src.pipeline import VideoPipeline
 	from src.tracker import ObjectTracker
@@ -58,6 +60,14 @@ if CONFIG.get("enabled_modules", {}).get("face", False):
 		face_detector = FaceDetector(CONFIG.get("face_cascade_path"))
 	except (FileNotFoundError, cv2.error):
 		face_detector = None
+face_recognizer = None
+if CONFIG.get("enabled_modules", {}).get("face_recognition", False):
+	face_recognizer = FaceRecognizer(
+		detector=face_detector,
+		gallery_dir=CONFIG.get("face_gallery_dir", "data/faces"),
+		model_path=CONFIG.get("face_model_path"),
+		threshold=CONFIG.get("face_recognition_threshold", 0.45),
+	)
 pipeline = VideoPipeline(detector, tracker, fence, activity, face_detector,
 						 CONFIG.get("camera_id", "CAM_001"), CONFIG.get("process_every_n_frames", 1),
 						 ANPRPipeline() if CONFIG.get("enabled_modules", {}).get("anpr", False) else None)
@@ -142,19 +152,8 @@ async def _analyze_image(file: UploadFile, camera_id: str, bop_id: str | None = 
 	event_manager.events.extend(result["events"])
 	result["anpr_status"] = "disabled" if not CONFIG.get("enabled_modules", {}).get("anpr", False) else "unavailable"
 	result["face_status"] = "available" if face_detector is not None else "disabled"
-
-	if FORWARD_TO_BACKEND and result["events"]:
-		snapshot = None
-		encoded, image_bytes = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, 85])
-		if encoded:
-			snapshot = base64.b64encode(image_bytes.tobytes()).decode("ascii")
-		result["backend"] = forward_events(
-			result["events"],
-			camera_id=camera_id,
-			bop_id=bop_id or DEFAULT_BOP_ID,
-			timestamp=result["timestamp"],
-			evidence_snapshot=snapshot,
-		)
+	if face_recognizer is not None:
+		result["faces"] = face_recognizer.analyze(image)
 	return result
 
 

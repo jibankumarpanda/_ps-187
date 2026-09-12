@@ -7,14 +7,16 @@ This directory contains the ML services for the Intelligent Border Video Analyti
 - `src/detector.py`: lazy-loaded Ultralytics YOLO detection and CPU/CUDA selection.
 - `src/tracker.py`: YOLO tracking with ByteTrack or BoT-SORT; no tracker training.
 - `src/anpr.py`: optional plate-detector plus PaddleOCR adapter. OCR confidence remains probabilistic.
-- `src/face.py`: optional pretrained OpenCV Haar face detector; identities remain `UNKNOWN`.
-- `src/face_recognition.py`: compatibility face-recognition interface; no identities are fabricated.
+- `src/face.py`: OpenCV Haar face detector used to locate faces in this prototype.
+- `src/face_recognition.py`: pretrained ArcFace `w600k_r50.onnx` embedding comparison against the six-image local gallery; no identities are fabricated.
 - `src/intrusion.py`: polygon fence geometry and `INTRUSION` events.
 - `src/activity.py`: configurable loitering, night movement, and movement rules. These are not a trained suspicious-activity model.
 - `src/events.py`: central JSON-compatible event normalization.
 - `src/pipeline.py`: reusable frame/video processing and annotated video output.
 - `api/main.py`: FastAPI service.
 - `config.yaml`: model paths, thresholds, zones, and module switches.
+
+Face recognition uses the pretrained ArcFace model at `.insightface/buffalo_l/w600k_r50.onnx`, ONNX Runtime, and the configurable `face_recognition_threshold` in `config.yaml`. The six reference images are stored directly under `data/faces/` and are named for their identities. The InsightFace Python wrapper is optional; the direct ONNX model avoids a native C++ build requirement on Windows.
 
 ## Setup
 
