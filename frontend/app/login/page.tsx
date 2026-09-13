@@ -73,6 +73,7 @@ export default function LoginPage() {
           alt="Siachen Border Security Force Salute"
           fill
           priority
+          unoptimized
           className="object-cover object-center scale-100 lg:scale-105 transition-transform duration-1000"
         />
 
@@ -122,7 +123,7 @@ export default function LoginPage() {
         <div className="flex items-center justify-between pb-4 sm:pb-6 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-none bg-accent/15 border border-[#37B9FF]/30 flex items-center justify-center overflow-hidden">
-              <Image src="/logo.png" alt="Logo" width={36} height={36} className="w-full h-full object-contain p-1" priority />
+              <Image src="/logo.png" alt="Logo" width={36} height={36} className="w-full h-full object-contain p-1" priority unoptimized />
             </div>
             <div>
               <div className="text-sm sm:text-base font-bold tracking-tight text-white">

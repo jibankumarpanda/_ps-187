@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Shield, ArrowRight, Video, Lock, Radio, Activity } from 'lucide-react';
@@ -20,8 +20,6 @@ import { TacticalImageStack } from './components/landing/TacticalImageStack';
 
 export default function LandingPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const statsRef = useRef<HTMLElement>(null);
-  const [hasAnimated, setHasAnimated] = useState(false);
 
   const toggleMenu = () => {
     setIsMenuOpen((prev) => !prev);
@@ -36,54 +34,6 @@ export default function LandingPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isMenuOpen]);
-
-  // Numbers counter animation for stats
-  useEffect(() => {
-    if (hasAnimated || !statsRef.current) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && !hasAnimated) {
-            setHasAnimated(true);
-            const counts = document.querySelectorAll('.landing-count');
-            counts.forEach((count, i) => {
-              const el = count as HTMLElement;
-              const target = parseFloat(el.getAttribute('data-target') || '0');
-              const decimals = parseInt(el.getAttribute('data-decimals') || '0', 10);
-              const duration = 1400 + i * 80;
-              const delay = 300 + i * 90;
-
-              let startTimestamp: number | null = null;
-
-              setTimeout(() => {
-                const step = (timestamp: number) => {
-                  if (!startTimestamp) startTimestamp = timestamp;
-                  const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-                  const easeProgress = 1 - Math.pow(1 - progress, 3);
-                  const current = Math.min(easeProgress * target, target);
-
-                  el.innerText = current.toFixed(decimals);
-
-                  if (progress < 1) {
-                    window.requestAnimationFrame(step);
-                  } else {
-                    el.innerText = target.toFixed(decimals);
-                  }
-                };
-                window.requestAnimationFrame(step);
-              }, delay);
-            });
-            observer.disconnect();
-          }
-        });
-      },
-      { threshold: 0.2 }
-    );
-
-    observer.observe(statsRef.current);
-    return () => observer.disconnect();
-  }, [hasAnimated]);
 
   return (
     <div className="landing-container">
@@ -106,7 +56,7 @@ export default function LandingPage() {
         {/* ─── FLOATING PILL HEADER ─── */}
         <header className="landing-header">
           <Link href="/" className="landing-logo overflow-hidden flex items-center justify-center p-1" aria-label="IBVAP Home">
-            <Image src="/logo.png" alt="Logo" width={40} height={40} className="w-full h-full object-contain" priority />
+            <Image src="/logo.png" alt="Logo" width={40} height={40} className="w-full h-full object-contain" priority unoptimized />
           </Link>
 
           <nav className="landing-nav-pill landing-desktop-nav">
@@ -206,50 +156,6 @@ export default function LandingPage() {
             </Link>
           </div>
         </section>
-
-        {/* ─── BOTTOM KPI METRICS ─── */}
-        <footer className="landing-stats" ref={statsRef}>
-          <div className="landing-stat landing-anim" style={{ '--d': '0.45s' } as React.CSSProperties}>
-            <div className="landing-stat-value">
-              <span>&lt;</span>
-              <span className="landing-count" data-target="120" data-decimals="0">
-                120
-              </span>
-              <span className="text-sm font-normal text-muted-foreground">ms</span>
-            </div>
-            <div className="landing-stat-label">Inference Latency</div>
-          </div>
-
-          <div className="landing-stat landing-anim" style={{ '--d': '0.52s' } as React.CSSProperties}>
-            <div className="landing-stat-value">
-              <span className="landing-count" data-target="99.99" data-decimals="2">
-                99.99
-              </span>
-              <span className="text-sm font-normal text-muted-foreground">%</span>
-            </div>
-            <div className="landing-stat-label">Platform Uptime</div>
-          </div>
-
-          <div className="landing-stat landing-anim" style={{ '--d': '0.6s' } as React.CSSProperties}>
-            <div className="landing-stat-value">
-              <span className="landing-count" data-target="24" data-decimals="0">
-                24
-              </span>
-              <span className="text-sm font-normal text-muted-foreground">/7</span>
-            </div>
-            <div className="landing-stat-label">Autonomous Watch</div>
-          </div>
-
-          <div className="landing-stat landing-anim" style={{ '--d': '0.68s' } as React.CSSProperties}>
-            <div className="landing-stat-value">
-              <span className="landing-count" data-target="30" data-decimals="0">
-                30
-              </span>
-              <span className="text-sm font-normal text-accent">+</span>
-            </div>
-            <div className="landing-stat-label">CCTV Nodes Monitored</div>
-          </div>
-        </footer>
       </main>
 
       {/* TACTICAL RECONNAISSANCE IMAGE STACK */}
