@@ -1,5 +1,5 @@
 model_path: yolo11n.pt
-dataset_yaml: data/traffic-detection-project/data.yaml
+dataset_yaml: data/merged-detection/data.yaml
 camera_id: BOP12-CAM04
 bop_id: BOP-12
 confidence_threshold: 0.35
