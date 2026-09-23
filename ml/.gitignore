@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+
+# Large dataset payloads (regenerate or store outside git)
+data/_downloads/
+data/merged-detection/
