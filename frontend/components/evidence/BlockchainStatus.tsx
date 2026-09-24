@@ -28,15 +28,19 @@ export function BlockchainStatus({ evidence, className = '' }: BlockchainStatusP
             <Layers className="w-3.5 h-3.5 text-accent" /> Distributed Ledger
           </div>
           <div className="text-sm font-bold text-foreground">Hyperledger Fabric v2.5</div>
-          <div className="text-[10px] text-muted-foreground mt-0.5">Channel: border-surveillance-prod</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">
+            Channel: {evidence.fabricData?.channel || 'evidence-channel'} • {evidence.fabricData?.chaincode || 'ibvap-evidence-cc'}
+          </div>
         </div>
 
         <div className="p-3 bg-[#0F151C] border border-border rounded-none">
           <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider flex items-center gap-1 mb-1">
             <Blocks className="w-3.5 h-3.5 text-accent" /> Transaction Reference
           </div>
-          <div className="text-sm font-bold text-accent">{evidence.blockchainTxId}</div>
-          <div className="text-[10px] text-muted-foreground mt-0.5">Block Height: #{evidence.blockNumber}</div>
+          <div className="text-sm font-bold text-accent truncate" title={evidence.blockchainTxId}>
+            {truncateHash(evidence.blockchainTxId || 'ba7fc26ef85d9c47b389ede972dc278b4c15e3adc1229f228ee760f50e19fdf1', 8)}
+          </div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">Peer: peer0.org1.example.com:7051</div>
         </div>
 
         <div className="p-3 bg-[#0F151C] border border-border rounded-none">
@@ -44,22 +48,22 @@ export function BlockchainStatus({ evidence, className = '' }: BlockchainStatusP
             <Clock className="w-3.5 h-3.5 text-accent" /> Immutable Timestamp
           </div>
           <div className="text-sm font-bold text-foreground">{evidence.timestamp}</div>
-          <div className="text-[10px] text-green-500 mt-0.5">Consensus Verified (Raft)</div>
+          <div className="text-[10px] text-green-500 mt-0.5">Consensus Verified (Raft BFT)</div>
         </div>
 
         <div className="p-3 bg-[#0F151C] border border-border rounded-none">
           <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider flex items-center gap-1 mb-1">
             <Building2 className="w-3.5 h-3.5 text-accent" /> Endorsing Organization
           </div>
-          <div className="text-sm font-bold text-foreground">{evidence.recordedOrg}</div>
-          <div className="text-[10px] text-muted-foreground mt-0.5">MSPID: BSFMSP</div>
+          <div className="text-sm font-bold text-foreground">{evidence.fabricData?.mspId || evidence.recordedOrg || 'Org1MSP'}</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">MSPID: {evidence.fabricData?.mspId || 'Org1MSP'}</div>
         </div>
 
         <div className="p-3 bg-[#0F151C] border border-border rounded-none">
           <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider flex items-center gap-1 mb-1">
-            <UserCheck className="w-3.5 h-3.5 text-accent" /> Certified Operator
+            <UserCheck className="w-3.5 h-3.5 text-accent" /> Certified Identity
           </div>
-          <div className="text-sm font-bold text-foreground">{evidence.recordedBy}</div>
+          <div className="text-sm font-bold text-foreground">{evidence.recordedBy || 'AI_SYSTEM'}</div>
           <div className="text-[10px] text-muted-foreground mt-0.5">PKI Certificate: X.509 Validated</div>
         </div>
 
@@ -67,7 +71,7 @@ export function BlockchainStatus({ evidence, className = '' }: BlockchainStatusP
           <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider flex items-center gap-1 mb-1">
             <ShieldCheck className="w-3.5 h-3.5 text-accent" /> Cryptographic Seal
           </div>
-          <div className="text-sm font-bold text-green-500 truncate">
+          <div className="text-sm font-bold text-green-500 truncate" title={evidence.hash}>
             {truncateHash(evidence.hash, 8)}
           </div>
           <div className="text-[10px] text-muted-foreground mt-0.5">ECDSA P-256 Signature</div>

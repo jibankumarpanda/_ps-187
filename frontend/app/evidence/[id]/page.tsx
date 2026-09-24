@@ -77,7 +77,7 @@ export default function EvidenceVerificationPage({ params }: { params: { id: str
       {/* ─── INTERACTIVE HASH VERIFICATION CONSOLE (Section 33) ─── */}
       <HashVerification
         evidence={evidence}
-        onVerify={() => verifyEvidence(evidence.evidenceId)}
+        onVerify={(customHash?: string) => verifyEvidence(evidence.evidenceId, customHash)}
       />
 
       {/* ─── ENTERPRISE HYPERLEDGER FABRIC STATUS (Section 34) ─── */}

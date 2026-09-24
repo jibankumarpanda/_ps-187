@@ -348,17 +348,31 @@ export async function getEvidenceById(id: string): Promise<Evidence | undefined>
   }
 }
 
-export async function verifyEvidence(id: string) {
-  return fetchApi<{
-    verified: boolean;
-    currentHash: string;
-    blockchainHash: string;
-    timestamp: string;
-    blockNumber: number;
-    txId: string;
-    recordedBy: string;
-    recordedOrg: string;
-  }>(`/evidence/${id}/verify`, { method: 'POST' });
+export interface VerifyEvidenceResponse {
+  verified: boolean;
+  currentHash: string;
+  blockchainHash: string;
+  timestamp: string;
+  blockNumber: number;
+  txId: string;
+  recordedBy: string;
+  recordedOrg: string;
+  channel?: string;
+  chaincode?: string;
+  status?: string;
+  message?: string;
+  latencyMs?: number;
+  dockerPeer?: string;
+  fabricRecord?: Record<string, any>;
+  fabricHistory?: any[];
+}
+
+export async function verifyEvidence(id: string, submittedHash?: string): Promise<VerifyEvidenceResponse> {
+  const options: RequestInit = { method: 'POST' };
+  if (submittedHash) {
+    options.body = JSON.stringify({ submittedHash });
+  }
+  return fetchApi<VerifyEvidenceResponse>(`/evidence/${id}/verify`, options);
 }
 
 // ─── Watchlist (backend routes exist; wire when ready) ─────

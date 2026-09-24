@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Shield, Eye, EyeOff, Lock, User, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
-import { FaceScanner } from '@/components/ui/FaceScanner';
+import { FaceScanner, preloadFaceModels } from '@/components/ui/FaceScanner';
 import { login as apiLogin } from '@/lib/api';
 
 type LoginStep = 'CREDENTIALS' | 'FACE_VERIFICATION';
@@ -22,6 +22,13 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string>('');
+
+  // Preload face recognition neural net in background while user enters credentials
+  useEffect(() => {
+    preloadFaceModels().catch((err) => {
+      console.warn('Background face model preload:', err);
+    });
+  }, []);
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
