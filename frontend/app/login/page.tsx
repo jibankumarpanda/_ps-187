@@ -15,8 +15,8 @@ export default function LoginPage() {
   const { showToast } = useToast();
   
   const [step, setStep] = useState<LoginStep>('CREDENTIALS');
-  const [username, setUsername] = useState('operator12@ibvap.gov');
-  const [password, setPassword] = useState('password123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberSession, setRememberSession] = useState(true);
   const [isLoading, setIsLoading] = useState(false);

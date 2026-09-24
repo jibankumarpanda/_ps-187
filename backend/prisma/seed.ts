@@ -48,7 +48,29 @@ async function main() {
       },
     });
   }
-  console.log('Created Users');
+
+  // Authority Admin User
+  const authorityPasswordHash = await bcrypt.hash('authority@123', 12);
+  for (const authorityEmail of ['worl.saikatbera@gmail.com', 'world.saikatbera@gmail.com']) {
+    await prisma.user.upsert({
+      where: { email: authorityEmail },
+      update: {
+        passwordHash: authorityPasswordHash,
+        role: 'SUPER_ADMIN' as UserRole,
+        isActive: true,
+        isEmailVerified: true,
+      },
+      create: {
+        email: authorityEmail,
+        name: 'Saikat Bera (Authority)',
+        passwordHash: authorityPasswordHash,
+        role: 'SUPER_ADMIN' as UserRole,
+        isActive: true,
+        isEmailVerified: true,
+      },
+    });
+  }
+  console.log('Created Users (including Authority)');
 
   // --- Cameras ---
   const camerasData = [
