@@ -53,10 +53,10 @@ export function HashVerification({ evidence, onVerify, className = '' }: HashVer
           type: 'error',
         });
       }
-    } catch (err) {
+    } catch (err: any) {
       showToast({
-        title: 'Verification Node Timeout',
-        message: 'Could not contact Hyperledger peer.',
+        title: 'Verification Failed',
+        message: err?.message || 'Could not verify evidence with Hyperledger peer.',
         type: 'error',
       });
     } finally {

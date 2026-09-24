@@ -2,6 +2,8 @@ import { prisma } from '../config/database';
 import { AppError } from '../utils/app-error';
 import { calculateSHA256 } from '../utils/hash';
 import { StorageClient } from '../integrations/storage/minio-client';
+import { config } from '../config';
+import { FabricClient } from '../integrations/blockchain/fabric-client';
 
 export class EvidenceService {
   static async getAll(filters?: { bopId?: string; status?: string; page?: number; limit?: number }) {
@@ -104,14 +106,31 @@ export class EvidenceService {
       }
     }
 
-    const verified = latestRecord ? currentHash === latestRecord.evidenceHash : false;
+    let verified = false;
+    let blockchainHash = latestRecord?.evidenceHash || '';
+
+    if (config.blockchainMode === 'fabric') {
+      try {
+        const fabricResult = await FabricClient.verifyEvidence(
+          evidence.evidenceCode,
+          currentHash,
+        );
+        verified = fabricResult.verified;
+        blockchainHash = fabricResult.onChainHash;
+      } catch (err: any) {
+        console.warn(`[Fabric] Direct verification error, falling back to local DB: ${err.message}`);
+        verified = latestRecord ? currentHash === latestRecord.evidenceHash : false;
+      }
+    } else {
+      verified = latestRecord ? currentHash === latestRecord.evidenceHash : false;
+    }
 
     if (verified) {
       await prisma.evidence.update({
         where: { id: evidence.id },
         data: { verificationStatus: 'VERIFIED' },
       });
-    } else if (latestRecord) {
+    } else if (latestRecord || config.blockchainMode === 'fabric') {
       await prisma.evidence.update({
         where: { id: evidence.id },
         data: { verificationStatus: 'FAILED' },
@@ -121,7 +140,7 @@ export class EvidenceService {
     return {
       verified,
       currentHash,
-      blockchainHash: latestRecord?.evidenceHash || '',
+      blockchainHash,
       timestamp: evidence.timestamp.toISOString(),
       blockNumber: latestRecord?.blockNumber || 0,
       txId: latestRecord?.transactionId || '',
