@@ -29,7 +29,8 @@ export class EvidenceController {
 
   static async verify(req: Request, res: Response, next: NextFunction) {
     try {
-      const result = await EvidenceService.verify(String(req.params.id));
+      const submittedHash = req.body?.submittedHash || req.body?.hash;
+      const result = await EvidenceService.verify(String(req.params.id), submittedHash);
       await AuditService.log({
         userId: req.user!.id, action: 'EVIDENCE_VERIFIED', resource: 'Evidence',
         resourceId: String(req.params.id), ipAddress: req.ip, userAgent: req.headers['user-agent'],

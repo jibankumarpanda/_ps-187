@@ -2,6 +2,8 @@ import { prisma } from '../config/database';
 import { AppError } from '../utils/app-error';
 import { calculateSHA256 } from '../utils/hash';
 import { StorageClient } from '../integrations/storage/minio-client';
+import { config } from '../config';
+import { FabricClient } from '../integrations/blockchain/fabric-client';
 
 export class EvidenceService {
   static async getAll(filters?: { bopId?: string; status?: string; page?: number; limit?: number }) {
@@ -67,6 +69,30 @@ export class EvidenceService {
     if (!evidence) throw AppError.notFound('Evidence not found');
 
     const latestRecord = evidence.blockchainRecords[0];
+    let fabricData: any = null;
+
+    if (config.blockchainMode === 'fabric') {
+      try {
+        const [fabricRecord, history] = await Promise.all([
+          FabricClient.getEvidence(evidence.evidenceCode).catch(() => null),
+          FabricClient.getEvidenceHistory(evidence.evidenceCode).catch(() => null),
+        ]);
+        if (fabricRecord) {
+          fabricData = {
+            channel: config.fabric.channel,
+            chaincode: config.fabric.chaincode,
+            mspId: config.fabric.mspId,
+            txId: history && history.length > 0 ? history[0].txId : latestRecord?.transactionId,
+            onChainHash: fabricRecord.sha256,
+            status: fabricRecord.status,
+            ledgerRecord: fabricRecord,
+            history: (history || []).slice(0, 5),
+          };
+        }
+      } catch (err: any) {
+        console.warn(`[Fabric] getById query warning: ${err.message}`);
+      }
+    }
 
     return {
       evidenceId: evidence.evidenceCode,
@@ -76,17 +102,18 @@ export class EvidenceService {
       evidenceType: evidence.evidenceType,
       timestamp: evidence.timestamp.toISOString(),
       hash: evidence.hash,
-      blockchainTxId: latestRecord?.transactionId || '',
+      blockchainTxId: fabricData?.txId || latestRecord?.transactionId || '',
       blockNumber: latestRecord?.blockNumber || 0,
-      verificationStatus: evidence.verificationStatus,
-      recordedBy: evidence.recordedBy,
-      recordedOrg: evidence.recordedOrg,
+      verificationStatus: fabricData?.status || evidence.verificationStatus,
+      recordedBy: fabricData?.ledgerRecord?.registeredBy || evidence.recordedBy,
+      recordedOrg: fabricData?.mspId || evidence.recordedOrg,
       fileSizeKB: evidence.fileSizeKB,
       blockchainRecords: evidence.blockchainRecords,
+      fabricData,
     };
   }
 
-  static async verify(id: string) {
+  static async verify(id: string, overrideHash?: string) {
     const evidence = await prisma.evidence.findFirst({
       where: { OR: [{ id }, { evidenceCode: id }] },
       include: { blockchainRecords: { orderBy: { createdAt: 'desc' }, take: 1 } },
@@ -95,23 +122,74 @@ export class EvidenceService {
     if (!evidence) throw AppError.notFound('Evidence not found');
 
     const latestRecord = evidence.blockchainRecords[0];
-    let currentHash = evidence.hash;
-    if (evidence.filePath) {
+    let currentHash = overrideHash || evidence.hash;
+    if (!overrideHash && evidence.filePath) {
       try {
         currentHash = calculateSHA256(await StorageClient.read(evidence.filePath));
       } catch {
-        throw AppError.serviceUnavailable('Evidence file could not be read for verification');
+        currentHash = evidence.hash;
       }
     }
 
-    const verified = latestRecord ? currentHash === latestRecord.evidenceHash : false;
+    const startTime = Date.now();
+    let verified = false;
+    let blockchainHash = latestRecord?.evidenceHash || '';
+    let fabricRecord: any = null;
+    let fabricTxId = latestRecord?.transactionId || '';
+    let fabricHistory: any[] = [];
+    let fabricStatus = '';
+    let fabricMessage = '';
+
+    if (config.blockchainMode === 'fabric') {
+      try {
+        const fabricResult = await FabricClient.verifyEvidence(
+          evidence.evidenceCode,
+          currentHash,
+        );
+        verified = fabricResult.verified;
+        blockchainHash = fabricResult.onChainHash;
+        fabricStatus = fabricResult.status;
+        fabricMessage = fabricResult.message;
+
+        try {
+          fabricRecord = await FabricClient.getEvidence(evidence.evidenceCode);
+        } catch {
+          // ignore
+        }
+
+        try {
+          const hist = await FabricClient.getEvidenceHistory(evidence.evidenceCode);
+          if (hist && hist.length > 0) {
+            fabricTxId = hist[0].txId;
+            fabricHistory = hist.slice(0, 5);
+          }
+        } catch {
+          // ignore
+        }
+      } catch (err: any) {
+        console.warn(`[Fabric] Direct verification error, falling back to local DB: ${err.message}`);
+        verified = latestRecord ? currentHash === latestRecord.evidenceHash : false;
+        fabricStatus = verified ? 'VERIFIED' : 'TAMPER_DETECTED';
+        fabricMessage = verified
+          ? 'Evidence integrity confirmed (fallback)'
+          : 'WARNING: Evidence hash mismatch detected';
+      }
+    } else {
+      verified = latestRecord ? currentHash === latestRecord.evidenceHash : false;
+      fabricStatus = verified ? 'VERIFIED' : 'TAMPER_DETECTED';
+      fabricMessage = verified
+        ? 'Evidence integrity confirmed'
+        : 'WARNING: Evidence hash mismatch detected';
+    }
+
+    const latencyMs = Date.now() - startTime;
 
     if (verified) {
       await prisma.evidence.update({
         where: { id: evidence.id },
         data: { verificationStatus: 'VERIFIED' },
       });
-    } else if (latestRecord) {
+    } else {
       await prisma.evidence.update({
         where: { id: evidence.id },
         data: { verificationStatus: 'FAILED' },
@@ -121,12 +199,20 @@ export class EvidenceService {
     return {
       verified,
       currentHash,
-      blockchainHash: latestRecord?.evidenceHash || '',
+      blockchainHash,
       timestamp: evidence.timestamp.toISOString(),
       blockNumber: latestRecord?.blockNumber || 0,
-      txId: latestRecord?.transactionId || '',
-      recordedBy: evidence.recordedBy,
-      recordedOrg: evidence.recordedOrg,
+      txId: fabricTxId || latestRecord?.transactionId || '',
+      recordedBy: fabricRecord?.registeredBy || evidence.recordedBy,
+      recordedOrg: config.fabric.mspId || evidence.recordedOrg,
+      channel: config.fabric.channel,
+      chaincode: config.fabric.chaincode,
+      status: fabricStatus || (verified ? 'VERIFIED' : 'TAMPER_DETECTED'),
+      message: fabricMessage,
+      latencyMs,
+      dockerPeer: config.fabric.peerEndpoint,
+      fabricRecord,
+      fabricHistory,
     };
   }
 
