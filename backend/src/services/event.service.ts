@@ -42,6 +42,7 @@ export class EventService {
         include: {
           camera: { select: { cameraCode: true, name: true } },
           bop: { select: { code: true, name: true } },
+          evidence: { select: { evidenceCode: true }, take: 1 },
         },
         orderBy: { timestamp: 'desc' },
         skip,
@@ -51,7 +52,7 @@ export class EventService {
     ]);
 
     return {
-      data: events.map((evt) => ({
+      data: events.map((evt: any) => ({
         eventId: evt.eventCode,
         cameraId: evt.camera.cameraCode,
         bopId: evt.bop.code,
@@ -63,6 +64,7 @@ export class EventService {
         zone: evt.zone,
         severity: evt.severity,
         threatScore: evt.threatScore,
+        evidenceId: evt.evidence?.[0]?.evidenceCode || '',
         status: evt.status,
         direction: evt.direction,
       })),
@@ -95,6 +97,7 @@ export class EventService {
       zone: event.zone,
       severity: event.severity,
       threatScore: event.threatScore,
+      evidenceId: event.evidence?.[0]?.evidenceCode || '',
       status: event.status,
       direction: event.direction,
       evidence: event.evidence,

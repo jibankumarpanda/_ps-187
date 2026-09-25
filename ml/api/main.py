@@ -142,18 +142,18 @@ def health() -> dict[str, Any]:
 			"enabled_modules": CONFIG.get("enabled_modules", {}), "active_streams": stream_manager.status()}
 
 
-async def _decode_image(file: UploadFile) -> np.ndarray:
+async def _decode_image(file: UploadFile) -> tuple[np.ndarray, bytes]:
 	if not file.content_type or not file.content_type.startswith("image/"):
 		raise HTTPException(status_code=415, detail="Upload an image frame")
 	contents = await file.read()
 	image = cv2.imdecode(np.frombuffer(contents, np.uint8), cv2.IMREAD_COLOR)
 	if image is None:
 		raise HTTPException(status_code=400, detail="Could not decode image")
-	return image
+	return image, contents
 
 
 async def _analyze_image(file: UploadFile, camera_id: str, bop_id: str | None = None) -> dict[str, Any]:
-	image = await _decode_image(file)
+	image, contents = await _decode_image(file)
 	try:
 		result = pipeline.process_frame(image, timestamp=datetime.now(timezone.utc).isoformat())
 	except (RuntimeError, FileNotFoundError) as exc:
@@ -168,7 +168,50 @@ async def _analyze_image(file: UploadFile, camera_id: str, bop_id: str | None = 
 		result["faces"] = face_recognizer.analyze(image)
 	person_detections = [d for d in result.get("detections", []) if str(d.get("class_name", "")).lower() == "person"]
 	result["person_count"] = len(person_detections)
-	result["is_gathering"] = any(e.get("event_type") == "GATHERING" for e in result.get("events", [])) or len(person_detections) >= CONFIG.get("gathering_threshold", 2)
+	gathering_active = any(e.get("event_type") == "GATHERING" for e in result.get("events", [])) or len(person_detections) >= CONFIG.get("gathering_threshold", 2)
+	result["is_gathering"] = gathering_active
+
+	# If gathering condition is met but not yet in result['events'], build gathering event
+	if gathering_active and not any(e.get("event_type") == "GATHERING" for e in result.get("events", [])):
+		cluster_boxes = [d["bbox"] for d in person_detections]
+		min_x = min(b[0] for b in cluster_boxes)
+		min_y = min(b[1] for b in cluster_boxes)
+		max_x = max(b[2] for b in cluster_boxes)
+		max_y = max(b[3] for b in cluster_boxes)
+		count = len(person_detections)
+		lead = person_detections[0]
+		gathering_event = {
+			"event_type": "GATHERING",
+			"severity": "HIGH" if count >= 4 else "MEDIUM",
+			"track_id": 1,
+			"object_type": "PERSON",
+			"confidence": float(lead.get("confidence", 0.9)),
+			"bbox": [min_x, min_y, max_x, max_y],
+			"metadata": {
+				"people_count": count,
+				"cluster_bbox": [min_x, min_y, max_x, max_y],
+				"description": f"Gathering of {count} people detected in camera sector",
+				"alert": "CROWD_GATHERING"
+			}
+		}
+		result["events"].append(gathering_event)
+
+	# Forward events to backend with evidence snapshot
+	events_to_forward = result.get("events", [])
+	if events_to_forward:
+		try:
+			evidence_b64 = base64.b64encode(contents).decode("utf-8")
+			forward_results = forward_events(
+				events_to_forward,
+				camera_id=camera_id,
+				bop_id=bop_id,
+				evidence_snapshot=evidence_b64,
+			)
+			result["forwarded"] = forward_results
+		except Exception as exc:
+			logger.warning("Event forwarding failed: %s", exc)
+			result["forwarded"] = [{"error": str(exc)}]
+
 	return result
 
 

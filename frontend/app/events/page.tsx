@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Activity, Search, Filter, Download, User, Car, ScanFace, AlertTriangle } from 'lucide-react';
+import { Activity, Search, Filter, Download, User, Car, ScanFace, AlertTriangle, Users } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { SeverityBadge } from '@/components/ui/SeverityBadge';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -20,6 +20,7 @@ export default function EventsPage() {
   const [bopFilter, setBopFilter] = useState('');
 
   const getEventIcon = (type: string) => {
+    if (type === 'SUSPICIOUS_ACTIVITY') return <Users className="w-3.5 h-3.5 text-[#F59E0B]" />;
     if (type.includes('PERSON') || type === 'INTRUSION') return <User className="w-3.5 h-3.5 text-accent" />;
     if (type.includes('VEHICLE') || type === 'ANPR_MATCH') return <Car className="w-3.5 h-3.5 text-[#F4C95D]" />;
     if (type.includes('FACE')) return <ScanFace className="w-3.5 h-3.5 text-green-500" />;
@@ -94,6 +95,7 @@ export default function EventsPage() {
                 { label: 'Loitering', value: 'LOITERING' },
                 { label: 'Night Activity', value: 'NIGHT_ACTIVITY' },
                 { label: 'Abandoned Object', value: 'ABANDONED_OBJECT' },
+                { label: 'Crowd Gathering / Suspicious', value: 'SUSPICIOUS_ACTIVITY' },
               ],
               value: typeFilter,
               onChange: setTypeFilter,

@@ -26,10 +26,13 @@ def _normalize_event(
 		or (event.get("metadata") or {}).get("zone")
 		or "UNKNOWN"
 	)
+	raw_type = str(event.get("event_type", "PERSON_DETECTED")).upper()
+	normalized_type = "SUSPICIOUS_ACTIVITY" if raw_type in {"GATHERING", "CROWD_GATHERING"} else raw_type
+
 	payload: dict[str, Any] = {
 		"cameraId": camera_id,
 		"timestamp": timestamp,
-		"eventType": str(event.get("event_type", "PERSON_DETECTED")).upper(),
+		"eventType": normalized_type,
 		"objectType": str(event.get("object_type", "PERSON")).upper(),
 		"confidence": float(event.get("confidence") or 0.5),
 		"zone": str(zone),
@@ -42,8 +45,12 @@ def _normalize_event(
 		payload["bbox"] = [float(v) for v in bbox]
 	if event.get("metadata"):
 		payload["metadata"] = event["metadata"]
-	potentially_critical = payload["eventType"] in {"INTRUSION", "FACE_MATCH", "ANPR_MATCH"} or event.get("severity") == "CRITICAL"
-	if evidence_snapshot and potentially_critical:
+	is_notable = (
+		payload["eventType"] in {"INTRUSION", "FACE_MATCH", "ANPR_MATCH", "SUSPICIOUS_ACTIVITY", "LOITERING"}
+		or raw_type in {"GATHERING", "CROWD_GATHERING"}
+		or event.get("severity") in {"CRITICAL", "HIGH", "MEDIUM"}
+	)
+	if evidence_snapshot and is_notable:
 		payload["evidence"] = {"contentBase64": evidence_snapshot, "mimeType": "image/jpeg"}
 	return payload
 

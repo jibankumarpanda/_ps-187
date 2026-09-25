@@ -57,15 +57,27 @@ class YOLODetector:
 		names = result.names
 		detections: list[dict[str, Any]] = []
 		boxes = result.boxes
+		surveillance_classes = {"person", "car", "truck", "bus", "motorcycle", "bicycle"}
+		vehicle_classes = {"car", "truck", "bus", "motorcycle", "bicycle"}
+
 		for index in range(len(boxes)):
 			class_id = int(boxes.cls[index].item())
-			class_name = str(names[class_id])
-			if self.class_filter and class_name not in self.class_filter:
+			class_name = str(names[class_id]).lower()
+			if self.class_filter:
+				if class_name not in self.class_filter:
+					continue
+			elif class_name not in surveillance_classes:
 				continue
+
+			conf = float(boxes.conf[index].item())
+			# Suppress false vehicle detections from indoor background objects
+			if class_name in vehicle_classes and conf < 0.55:
+				continue
+
 			detection = Detection(
 				class_id=class_id,
 				class_name=class_name,
-				confidence=float(boxes.conf[index].item()),
+				confidence=conf,
 				bbox=[float(value) for value in boxes.xyxy[index].tolist()],
 			)
 			detections.append(detection.to_dict())
