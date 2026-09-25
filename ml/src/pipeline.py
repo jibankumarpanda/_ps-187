@@ -7,7 +7,7 @@ from typing import Any
 import cv2
 
 from .activity import ActivityMonitor
-from .anpr import ANPRPipeline
+from .anpr import ANPRPipeline, anpr_result_to_raw_event
 from .detector import YOLODetector
 from .events import EventManager
 from .face import FaceDetector
@@ -19,13 +19,15 @@ class VideoPipeline:
 	def __init__(self, detector: YOLODetector, tracker: ObjectTracker | None = None,
 				 fence: VirtualFence | None = None, activity: ActivityMonitor | None = None,
 				 face_detector: FaceDetector | None = None, camera_id: str = "CAM_001",
-				 process_every_n_frames: int = 1, anpr: ANPRPipeline | None = None) -> None:
+				 process_every_n_frames: int = 1, anpr: ANPRPipeline | None = None,
+				 watchlist_provider: Any = None) -> None:
 		self.detector = detector
 		self.tracker = tracker or ObjectTracker(detector)
 		self.fence = fence or VirtualFence({})
 		self.activity = activity or ActivityMonitor()
 		self.face_detector = face_detector
 		self.anpr = anpr
+		self.watchlist_provider = watchlist_provider
 		self.camera_id = camera_id
 		self.process_every_n_frames = max(1, process_every_n_frames)
 
@@ -36,6 +38,20 @@ class VideoPipeline:
 		raw_events = self.fence.evaluate(tracks) + self.activity.evaluate(tracks, datetime.now(timezone.utc))
 		faces = self.face_detector.detect(frame) if self.face_detector else []
 		anpr_results = self.anpr.read(frame) if self.anpr else []
+		watchlist = None
+		if anpr_results and callable(self.watchlist_provider):
+			try:
+				watchlist = self.watchlist_provider()
+			except Exception:
+				watchlist = None
+		elif anpr_results:
+			watchlist = self.watchlist_provider
+		for anpr_result in anpr_results or []:
+			anpr_event = anpr_result_to_raw_event(anpr_result, frame_number,
+													getattr(frame, "shape", None), watchlist,
+													image=frame)
+			if anpr_event is not None:
+				raw_events.append(anpr_event)
 		manager = EventManager(self.camera_id)
 		events = manager.normalize(raw_events, timestamp)
 		return {"camera_id": self.camera_id, "timestamp": timestamp, "detections": detections,

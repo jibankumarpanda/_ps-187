@@ -20,6 +20,7 @@ try:
 	from ml.api.stream_worker import CameraStreamConfig, CameraStreamManager
 	from ml.src.activity import ActivityMonitor
 	from ml.src.anpr import ANPRPipeline
+	from ml.src.anpr_runtime import create_anpr_pipeline
 	from ml.src.detector import YOLODetector, select_device
 	from ml.src.events import EventManager
 	from ml.src.face import FaceDetector
@@ -32,6 +33,7 @@ except ModuleNotFoundError:
 	from api.stream_worker import CameraStreamConfig, CameraStreamManager
 	from src.activity import ActivityMonitor
 	from src.anpr import ANPRPipeline
+	from src.anpr_runtime import create_anpr_pipeline
 	from src.detector import YOLODetector, select_device
 	from src.events import EventManager
 	from src.face import FaceDetector
@@ -46,9 +48,15 @@ with (ROOT / "config.yaml").open(encoding="utf-8") as config_file:
 	CONFIG = yaml.safe_load(config_file) or {}
 
 device = select_device(CONFIG.get("device"))
-model_path = Path(CONFIG["model_path"])
+model_path_str = os.getenv("MODEL_PATH", CONFIG.get("model_path", "runs/merged_det_yolo/weights/best.pt"))
+model_path = Path(model_path_str)
 if not model_path.is_absolute():
-	model_path = ROOT / model_path
+	for candidate in (ROOT / model_path, ROOT.parent / model_path):
+		if candidate.is_file():
+			model_path = candidate
+			break
+	else:
+		model_path = ROOT / model_path
 detector = YOLODetector(str(model_path), CONFIG["confidence_threshold"], device,
 						CONFIG.get("classes"))
 tracker = ObjectTracker(detector, CONFIG.get("tracker", "bytetrack.yaml"))
@@ -73,9 +81,39 @@ if CONFIG.get("enabled_modules", {}).get("face_recognition", False):
 		model_path=CONFIG.get("face_model_path"),
 		threshold=CONFIG.get("face_recognition_threshold", 0.45),
 	)
+logger = logging.getLogger(__name__)
+
+
+def is_anpr_enabled(config: dict[str, Any]) -> bool:
+	return bool(
+		config.get("enabled_modules", {}).get("anpr", False)
+		or config.get("anpr", {}).get("enabled", False)
+	)
+
+
+def build_anpr_pipeline(config: dict[str, Any], device_name: str | None = None) -> ANPRPipeline | None:
+	"""Construct real ANPR pipeline if enabled; handles graceful fallback if models missing."""
+	if not is_anpr_enabled(config):
+		return None
+	anpr_cfg = config.get("anpr") or {}
+	ocr_cfg = anpr_cfg.get("ocr") or {}
+	try:
+		return create_anpr_pipeline(
+			plate_detector_model=anpr_cfg.get("plate_detector_model"),
+			ocr_model=ocr_cfg.get("model"),
+			detector_confidence=anpr_cfg.get("detector_confidence", 0.35),
+			ocr_confidence=ocr_cfg.get("confidence", 0.50),
+			device=device_name,
+		)
+	except (FileNotFoundError, RuntimeError, ValueError) as exc:
+		logger.warning("ANPR pipeline could not be initialized: %s", exc)
+		return None
+
+
+anpr_pipeline = build_anpr_pipeline(CONFIG, device)
 pipeline = VideoPipeline(detector, tracker, fence, activity, face_detector,
 						 CONFIG.get("camera_id", "CAM_001"), CONFIG.get("process_every_n_frames", 1),
-						 ANPRPipeline() if CONFIG.get("enabled_modules", {}).get("anpr", False) else None)
+						 anpr_pipeline)
 app = FastAPI(title="IBVAP ML API", version="1.0.0")
 app.add_middleware(
 	CORSMiddleware,
@@ -84,7 +122,6 @@ app.add_middleware(
 	allow_methods=["*"],
 	allow_headers=["*"],
 )
-logger = logging.getLogger(__name__)
 
 DEFAULT_CAMERA_ID = CONFIG.get("camera_id", "BOP12-CAM04")
 DEFAULT_BOP_ID = CONFIG.get("bop_id", "BOP-12")
@@ -115,6 +152,7 @@ def _build_stream_pipeline(camera_id: str) -> VideoPipeline:
 	"""Create isolated tracker and rule state for one long-running camera."""
 	stream_detector = YOLODetector(str(model_path), CONFIG["confidence_threshold"], device, CONFIG.get("classes"))
 	stream_tracker = ObjectTracker(stream_detector, CONFIG.get("tracker", "bytetrack.yaml"))
+	stream_anpr = build_anpr_pipeline(CONFIG, device)
 	return VideoPipeline(
 		stream_detector,
 		stream_tracker,
@@ -123,7 +161,7 @@ def _build_stream_pipeline(camera_id: str) -> VideoPipeline:
 		face_detector,
 		camera_id,
 		CONFIG.get("process_every_n_frames", 1),
-		ANPRPipeline() if CONFIG.get("enabled_modules", {}).get("anpr", False) else None,
+		stream_anpr,
 	)
 
 
@@ -139,6 +177,7 @@ def root() -> dict[str, str]:
 def health() -> dict[str, Any]:
 	return {"status": "ok", "device": device, "model_loaded": detector.model_loaded,
 			"model_path": str(model_path), "face_available": face_detector is not None,
+			"anpr_available": pipeline.anpr is not None,
 			"enabled_modules": CONFIG.get("enabled_modules", {}), "active_streams": stream_manager.status()}
 
 
@@ -162,7 +201,7 @@ async def _analyze_image(file: UploadFile, camera_id: str, bop_id: str | None = 
 		for event in result["events"]:
 			event["camera_id"] = camera_id
 	event_manager.events.extend(result["events"])
-	result["anpr_status"] = "disabled" if not CONFIG.get("enabled_modules", {}).get("anpr", False) else "unavailable"
+	result["anpr_status"] = "available" if pipeline.anpr is not None else ("disabled" if not is_anpr_enabled(CONFIG) else "unavailable")
 	result["face_status"] = "available" if face_detector is not None else "disabled"
 	if face_recognizer is not None:
 		result["faces"] = face_recognizer.analyze(image)

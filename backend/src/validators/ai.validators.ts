@@ -7,6 +7,8 @@ export const aiEventSchema = z.object({
   bopId: z.string().min(1).optional(),
   bop_id: z.string().min(1).optional(),
   timestamp: z.string().optional(),
+  eventId: z.string().min(1).optional(),
+  event_id: z.string().min(1).optional(),
   eventType: z.string().min(1).optional(),
   event_type: z.string().min(1).optional(),
   objectType: z.string().min(1).optional(),
