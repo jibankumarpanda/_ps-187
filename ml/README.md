@@ -1,67 +1,137 @@
-# IBVAP ML Platform
+---
+title: IBVAP ML Inference
+emoji: 🛡️
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+pinned: false
+license: mit
+short_description: Intelligent Border Video Analytics – ML inference API
+---
 
-This directory contains the ML services for the Intelligent Border Video Analytics Platform. The design uses pretrained models where appropriate and keeps measurable rule-based events separate from future action-recognition models.
+# IBVAP ML Inference API
+
+Real-time object detection, face recognition, and OCR inference for the
+**Intelligent Border Video Analytics Platform**.  Runs on Hugging Face
+Spaces with `sdk: docker` (CPU-only).
+
+## Endpoints
+
+| Method | Path | Description |
+|:-------|:-----|:------------|
+| `GET`  | `/` | Always returns `200 OK`, even during model warm-up |
+| `GET`  | `/health` | Per-model readiness status and warm-up times (ms) |
+| `GET`  | `/config` | Current configuration (secrets redacted) |
+| `POST` | `/predict` | YOLO object detection (multipart image upload) |
+| `POST` | `/predict/base64` | YOLO detection from JSON `{ "image": "<base64>" }` |
+| `POST` | `/predict/onnx` | ArcFace embedding from uploaded face crop |
+| `POST` | `/jobs` | Submit async BullMQ job (requires `REDIS_URL`) |
+| `GET`  | `/jobs/{id}` | Poll job status and result |
+
+Interactive docs are available at `/docs` (Swagger UI).
+
+## Quick Start (curl)
+
+```bash
+# Health check
+curl https://YOUR-SPACE.hf.space/health
+
+# Run YOLO detection
+curl -X POST https://YOUR-SPACE.hf.space/predict \
+  -F "file=@photo.jpg"
+```
+
+**Sample response:**
+
+```json
+{
+  "detections": [
+    {
+      "bbox": [120.5, 45.2, 380.1, 510.7],
+      "confidence": 0.9124,
+      "class_id": 0,
+      "class_name": "person"
+    }
+  ],
+  "image_shape": [720, 1280]
+}
+```
+
+## Configuration
+
+Every key in `config.yaml` can be overridden by an environment variable
+of the **same name uppercased**.
+
+| Variable | Default | Description |
+|:---------|:--------|:------------|
+| `PORT` | `7860` | Bind port (set automatically by HF) |
+| `MODEL_PATH` | `yolo11n.pt` | Path to YOLO weights |
+| `CONFIDENCE_THRESHOLD` | `0.35` | YOLO detection threshold |
+| `IOU_THRESHOLD` | `0.5` | YOLO NMS IoU threshold |
+| `MAX_IMAGE_BYTES` | `20971520` | Upload size limit (20 MB) |
+| `MAX_IMAGE_EDGE` | `2048` | Longest-edge downscale |
+| `OCR_THRESHOLD` | `0.5` | PaddleOCR confidence |
+| `FACE_MODEL_PATH` | `.insightface/…/w600k_r50.onnx` | ArcFace ONNX path |
+| `REDIS_URL` | *(none)* | Enable BullMQ job queue |
+
+Set secrets in **Settings → Variables and secrets** on HF, never in a
+committed file.
 
 ## Architecture
 
-- `src/detector.py`: lazy-loaded Ultralytics YOLO detection and CPU/CUDA selection.
-- `src/tracker.py`: YOLO tracking with ByteTrack or BoT-SORT; no tracker training.
-- `src/anpr.py`: optional plate-detector plus PaddleOCR adapter. OCR confidence remains probabilistic.
-- `src/face.py`: OpenCV Haar face detector used to locate faces in this prototype.
-- `src/face_recognition.py`: pretrained ArcFace `w600k_r50.onnx` embedding comparison against the six-image local gallery; no identities are fabricated.
-- `src/intrusion.py`: polygon fence geometry and `INTRUSION` events.
-- `src/activity.py`: configurable loitering, night movement, and movement rules. These are not a trained suspicious-activity model.
-- `src/events.py`: central JSON-compatible event normalization.
-- `src/pipeline.py`: reusable frame/video processing and annotated video output.
-- `api/main.py`: FastAPI service.
-- `config.yaml`: model paths, thresholds, zones, and module switches.
+```
+src/
+├── detector.py        # Ultralytics YOLO detector
+├── tracker.py         # ByteTrack / BoT-SORT tracker
+├── anpr.py            # PaddleOCR license-plate reader
+├── face.py            # OpenCV Haar face detector
+├── face_recognition.py# ArcFace ONNX embedding comparison
+├── intrusion.py       # Polygon virtual-fence geometry
+├── activity.py        # Loitering / night-movement rules
+├── events.py          # Normalised event schema
+└── pipeline.py        # Frame / video processing pipeline
 
-Face recognition uses the pretrained ArcFace model at `.insightface/buffalo_l/w600k_r50.onnx`, ONNX Runtime, and the configurable `face_recognition_threshold` in `config.yaml`. The six reference images are stored directly under `data/faces/` and are named for their identities. The InsightFace Python wrapper is optional; the direct ONNX model avoids a native C++ build requirement on Windows.
-
-## Setup
-
-From the repository root:
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install -r ml/requirements.txt
+api/main.py            # Full-featured local-dev API
+app.py                 # HF Space entry point (lazy loading)
+worker.py              # BullMQ async job worker
+bullmq_compat.py       # Compat shim for bullmq API changes
+config.yaml            # Default config (env-var overrideable)
+Dockerfile             # Production CPU-only image
 ```
 
-The repository currently includes the pretrained `ml/yolo11n.pt`. No custom `best.pt`, dataset, or metric is present, so no custom training result is claimed.
+## Hardware Notes
 
-## Dataset and training
+> **⚠️ ZeroGPU is NOT available for `sdk: docker`.**
+>
+> HF's free ZeroGPU (T4 burst) is only available via `sdk: gradio` +
+> `@spaces.GPU`.  Docker Spaces run on shared CPU instances.
+>
+> If you need GPU inference, use one of:
+> - **Inference Endpoints** (dedicated GPU, pay-per-hour)
+> - **`sdk: gradio`** Space with `@spaces.GPU` decorator
+> - A self-hosted machine with an NVIDIA GPU
+>
+> This container is tuned for **CPU-only** inference.  A single uvicorn
+> worker is used deliberately — YOLO + PaddleOCR + ONNX Runtime are
+> multi-GB resident against the 16 GB RAM cap.  Scale horizontally by
+> **duplicating the Space**, not by adding `--workers`.
 
-Use a real YOLO dataset with `images/{train,val,test}`, `labels/{train,val,test}`, and `data.yaml`. Confirm that `data.yaml` contains the class names; do not assume the suggested `person`, `car`, `truck`, `bus`, and `motorcycle` classes exist.
+## ML Modules
 
-The downloaded prototype dataset is available at `data/traffic-detection-project/data.yaml` and currently contains 5,805 training images, 549 validation images, and 279 test images with classes `bicycle`, `bus`, `car`, `motorbike`, and `person`. It does not contain a `truck` class. The dataset metadata identifies the source as CC BY 4.0; retain its attribution if you redistribute it.
+| Module | Method | Notes |
+|:-------|:-------|:------|
+| Object Detection | YOLOv11n (ultralytics) | Pretrained COCO or custom `best.pt` |
+| Tracking | ByteTrack / BoT-SORT | No separate training needed |
+| OCR (ANPR) | PaddleOCR | CPU-only; disabled by default |
+| Face Detection | OpenCV Haar Cascade | Basic frontal/well-lit |
+| Face Recognition | ArcFace `w600k_r50.onnx` | Pretrained; ONNX Runtime CPU |
+| Intrusion | Polygon geometry | Rule-based, 100% deterministic |
+| Activity | Time / motion thresholds | Loitering, night movement |
 
-Open the existing `notebooks/01_yolo_training.ipynb`, set `DATASET_YAML`, `MODEL_NAME`, `EPOCHS`, `IMAGE_SIZE`, `BATCH_SIZE`, and `CONFIDENCE_THRESHOLD`, then run the explicit training cell. Training is never started automatically. Validation and metrics are only real after that cell is executed on a real dataset.
+## Dataset & Training
 
-## API
-
-```powershell
-python -m uvicorn ml.api.main:app --reload
-```
-
-`GET /health` reports service state and selected device. `GET /events` returns normalized events seen by the current process. Send an image to either `POST /analyze/image` or `POST /analyze/frame`:
-
-```powershell
-curl.exe -X POST "http://127.0.0.1:8000/analyze/frame?camera_id=CAM_001" -F "file=@frame.jpg"
-```
-
-The response contains JSON-serializable `detections`, `tracks`, and `events`. Events use `camera_id`, ISO-8601 `timestamp`, `event_type`, `severity`, `track_id`, `object_type`, `confidence`, `bbox`, and `metadata` fields. The backend can consume this response directly or forward events to its event bus.
-
-`POST /analyze/video` accepts a video upload and processes it with the configured frame interval. It returns processing counts; the temporary annotated output is not persisted by the API. For persistent output, call `VideoPipeline.process_video` from Python with an explicit output path.
-
-From the `ml/` directory, run smoke scripts with real paths only:
-
-```powershell
-python tests/test_detector.py --image C:\path\to\frame.jpg
-python tests/test_pipeline.py --video C:\path\to\video.mp4 --output C:\path\to\annotated.mp4
-```
-
-## Video and notebook testing
-
-The existing notebook provides guarded cells for environment verification, imports, dataset/data.yaml inspection, class inspection, manual YOLO training, validation, metrics, image/video inference, tracking, fence, loitering, night movement, ANPR, face, activity, full-pipeline testing, and JSON event serialization. Cells that need a path or model weight skip cleanly until configured. It does not fabricate data or results.
+The pretrained `yolo11n.pt` ships in the image.  For custom training
+see `notebooks/01_yolo_training.ipynb`.  The training dataset
+(`data/traffic-detection-project/`) is **not** included in the Docker
+image — mount it via `/data` if needed.

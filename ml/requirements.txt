@@ -1,13 +1,60 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# IBVAP ML – Python dependencies
+# ──────────────────────────────────────────────────────────────────────────────
+# FOR HF DOCKER SPACE:
+#   torch         → Pre-installed in the Dockerfile from PyTorch CPU index.
+#                    Default PyPI pulls ~2.5 GB of nvidia-cuda-* wheels that
+#                    serve no purpose on a CPU Space and will OOM the builder.
+#   paddlepaddle  → Pre-installed in the Dockerfile from Paddle's CPU index.
+#                    It is NOT on default PyPI. paddleocr ImportErrors without it.
+# The Dockerfile installs both BEFORE this file, so pip sees them satisfied
+# and skips the PyPI lookup. For local GPU dev, pip install as usual.
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ── Web framework ────────────────────────────────────────────────────────────
 fastapi>=0.115,<1
 python-multipart>=0.0.9,<1
 uvicorn[standard]>=0.30,<1
 httpx>=0.27,<1
-numpy>=1.26,<3
-opencv-python>=4.9,<5
+
+# ── Numeric / Vision ─────────────────────────────────────────────────────────
+# FIX: numpy MUST stay on 1.26.x for Docker. paddleocr <3 depends on the
+# unmaintained `imgaug`, which uses np.sctypes (removed in numpy 2.0).
+# Locally you may get away with 2.x if you don't use paddleocr.
+numpy>=1.26,<1.27
+
+# FIX: Use headless OpenCV in production. Full opencv-python pulls Qt/GTK
+# shared libs adding ~200 MB for zero benefit in a headless container.
+# libgl1 + libglib2.0-0 are installed via apt as a safety net.
+# NOTE: paddleocr's setup.py may pin opencv-python<=4.6 and silently
+# downgrade it, breaking ultralytics. The Dockerfile re-asserts headless
+# AFTER this install.
+opencv-python-headless>=4.6.0.66
+
 PyYAML>=6,<7
+
+# ── ML models ────────────────────────────────────────────────────────────────
+# torch is kept here for local `pip install -r requirements.txt`.
+# The Dockerfile pre-installs the CPU-only wheel so this line is a no-op
+# inside the container.
 torch>=2.2
 ultralytics>=8.3,<9
 paddleocr>=2.8,<3
-bullmq
-request
+
+# ONNX Runtime for ArcFace face-recognition embeddings (CPU provider).
 onnxruntime>=1.17,<2
+
+# ── Image handling ───────────────────────────────────────────────────────────
+# FIX: Pillow was implicitly pulled by paddleocr/ultralytics but never
+# pinned. Explicit dep prevents silent version conflicts.
+Pillow>=10,<11
+
+# ── Job queue (optional, degrades gracefully without Redis) ──────────────────
+# FIX: the original file had `request` — a 2012 unmaintained sdist that
+# FAILS TO BUILD on Python 3.10 (missing setuptools.extern). The correct
+# PyPI package is `requests`.
+requests>=2.31,<3
+
+# FIX: `redis` was missing. Required as the transport for bullmq.
+redis>=5,<6
+bullmq>=2.7,<3

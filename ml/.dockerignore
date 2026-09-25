@@ -1,0 +1,37 @@
+# ── IBVAP ML – .dockerignore ─────────────────────────────────────────────────
+# Keep the build context small so COPY . . takes seconds, not minutes.
+
+.git
+.gitignore
+.env
+*.log
+
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+
+venv/
+.venv/
+
+# Training artefacts – not needed at inference time
+runs/
+notebooks/
+tests/
+
+# Large training datasets (keep data/faces/ for recognition gallery)
+data/traffic-detection-project/
+data/merged-detection/
+
+# Large media
+*.mp4
+*.avi
+*.mkv
+*.mov
+
+# IDE / OS junk
+.DS_Store
+.idea/
+.vscode/
+*.swp

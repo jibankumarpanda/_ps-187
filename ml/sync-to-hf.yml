@@ -1,0 +1,87 @@
+name: Sync ML to Hugging Face Space
+
+on:
+  push:
+    branches:
+      - main
+      - MachineLearning
+      - jiban-mldeploy
+    paths:
+      - 'ml/**'
+  workflow_dispatch:
+    inputs:
+      force_push:
+        description: 'Force push to Hugging Face Space'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  sync-to-hf:
+    name: Sync ml/ to Hugging Face Docker Space
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout GitHub Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Install Git LFS
+        run: |
+          git lfs install
+
+      - name: Sync and Push ml/ to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE: ${{ secrets.HF_SPACE || vars.HF_SPACE || 'jibankumarpanda/ibvap-ml' }}
+        run: |
+          if [ -z "$HF_TOKEN" ]; then
+            echo "::error::HF_TOKEN secret is missing! Please configure HF_TOKEN (with write permissions) in GitHub Secrets."
+            exit 1
+          fi
+
+          echo "Target HF Space: $HF_SPACE"
+
+          # Configure Git credentials
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+
+          # Clone the Hugging Face Space repository
+          echo "Cloning Hugging Face Space..."
+          git clone "https://user:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}" hf_repo
+
+          # Clean existing space files (preserve .git)
+          find hf_repo -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+
+          # Copy ml/ directory contents into root of hf_repo
+          cp -r ml/. hf_repo/
+
+          cd hf_repo
+
+          # Remove non-inference and heavy training artifacts before pushing
+          rm -rf runs/ tests/ notebooks/ .venv/ venv/ .pytest_cache
+          rm -rf data/traffic-detection-project/ data/merged-detection/
+          find . -name "*.pyc" -delete
+          find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+
+          # Track model weights in Git LFS if present
+          git lfs track "*.pt" "*.onnx" "*.bin" "*.pth" "*.weights" "*.engine" 2>/dev/null || true
+          [ -f .gitattributes ] && git add .gitattributes
+
+          git add -A
+
+          # Commit and push if there are changes
+          if git diff --staged --quiet; then
+            echo "No changes detected between ml/ and Hugging Face Space."
+          else
+            echo "Changes detected. Pushing to Hugging Face Space..."
+            git commit -m "Sync ML from GitHub [${GITHUB_SHA::7}] - $(date -u +'%Y-%m-%d %H:%M:%SZ')"
+            if [ "${{ github.event.inputs.force_push }}" = "true" ]; then
+              git push --force origin main
+            else
+              git push origin main
+            fi
+            echo "Successfully synced to Hugging Face Space!"
+          fi

@@ -12,6 +12,7 @@ import cv2
 import numpy as np
 import yaml
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 try:
@@ -52,7 +53,11 @@ detector = YOLODetector(str(model_path), CONFIG["confidence_threshold"], device,
 						CONFIG.get("classes"))
 tracker = ObjectTracker(detector, CONFIG.get("tracker", "bytetrack.yaml"))
 fence = VirtualFence(CONFIG.get("restricted_zones", {}))
-activity = ActivityMonitor(CONFIG["loitering_seconds"], tuple(CONFIG["night_hours"]))
+activity = ActivityMonitor(
+	CONFIG["loitering_seconds"],
+	tuple(CONFIG["night_hours"]),
+	gathering_threshold=CONFIG.get("gathering_threshold", 2),
+)
 event_manager = EventManager(CONFIG.get("camera_id", "CAM_001"))
 face_detector = None
 if CONFIG.get("enabled_modules", {}).get("face", False):
@@ -72,6 +77,13 @@ pipeline = VideoPipeline(detector, tracker, fence, activity, face_detector,
 						 CONFIG.get("camera_id", "CAM_001"), CONFIG.get("process_every_n_frames", 1),
 						 ANPRPipeline() if CONFIG.get("enabled_modules", {}).get("anpr", False) else None)
 app = FastAPI(title="IBVAP ML API", version="1.0.0")
+app.add_middleware(
+	CORSMiddleware,
+	allow_origins=["*"],
+	allow_credentials=True,
+	allow_methods=["*"],
+	allow_headers=["*"],
+)
 logger = logging.getLogger(__name__)
 
 DEFAULT_CAMERA_ID = CONFIG.get("camera_id", "BOP12-CAM04")
@@ -154,6 +166,9 @@ async def _analyze_image(file: UploadFile, camera_id: str, bop_id: str | None = 
 	result["face_status"] = "available" if face_detector is not None else "disabled"
 	if face_recognizer is not None:
 		result["faces"] = face_recognizer.analyze(image)
+	person_detections = [d for d in result.get("detections", []) if str(d.get("class_name", "")).lower() == "person"]
+	result["person_count"] = len(person_detections)
+	result["is_gathering"] = any(e.get("event_type") == "GATHERING" for e in result.get("events", [])) or len(person_detections) >= CONFIG.get("gathering_threshold", 2)
 	return result
 
 

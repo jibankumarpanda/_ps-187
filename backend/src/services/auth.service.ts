@@ -258,7 +258,7 @@ export class AuthService {
    * - If no faceDescriptor is stored → enroll (save descriptor)
    * - If a faceDescriptor exists → compare via Euclidean distance
    */
-  static async verifyFace(userId: string, descriptor: number[]) {
+  static async verifyFace(userId: string, descriptor: number[], forceEnroll = false) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, faceDescriptor: true, faceEnrolledAt: true },
@@ -268,8 +268,8 @@ export class AuthService {
       throw AppError.notFound('User not found');
     }
 
-    // --- ENROLLMENT (first time) ---
-    if (!user.faceDescriptor || user.faceDescriptor.length === 0) {
+    // --- ENROLLMENT (first time or explicit re-enrollment) ---
+    if (forceEnroll || !user.faceDescriptor || user.faceDescriptor.length === 0) {
       await prisma.user.update({
         where: { id: userId },
         data: {
@@ -283,7 +283,7 @@ export class AuthService {
     // --- VERIFICATION (subsequent logins) ---
     const stored = user.faceDescriptor;
     const distance = AuthService.euclideanDistance(stored, descriptor);
-    const threshold = 0.6; // face-api.js recommended threshold
+    const threshold = 0.68; // Calibrated for tinyLandmark neural alignment with webcams
 
     if (distance < threshold) {
       return { status: 'verified' as const, message: 'Face verified successfully.', distance };

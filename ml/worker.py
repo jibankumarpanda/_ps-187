@@ -1,106 +1,124 @@
+"""
+worker.py – BullMQ job worker for IBVAP ML inference.
+
+Reuses the app.py ModelRegistry so models are loaded once and shared.
+Concurrency is set to 1: YOLO + PaddleOCR + ORT are multi-GB resident
+and a second concurrent job would OOM a 16 GB Space.
+
+Gracefully drains on SIGTERM so HF restarts don't orphan in-flight jobs.
+"""
+
 import asyncio
-import os
-import sys
+import base64
 import logging
-import requests
+import os
+import signal
+import sys
 
-# Ensure ml directory is in python path
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.insert(0, current_dir)
+import cv2
+import numpy as np
 
-from bullmq import Worker, Job
-from video.processor import VideoProcessor
+# Ensure the ml/ root is on sys.path so `from src.*` imports work.
+_here = os.path.dirname(os.path.abspath(__file__))
+if _here not in sys.path:
+    sys.path.insert(0, _here)
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+from app import registry, CONFIG, _guard_and_decode, _yolo_detections_to_list  # noqa: E402
 
-REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
-REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
-BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:4000/api')
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s  %(name)s  %(levelname)s  %(message)s",
+)
+logger = logging.getLogger("ibvap.worker")
 
-async def process_video(job: Job, job_token: str):
-    logger.info(f"Processing job {job.id} for video {job.data.get('videoId')}")
-    video_id = job.data.get('videoId')
-    camera_id = job.data.get('cameraId')
-    video_path = job.data.get('videoPath')
-    
-    if not all([video_id, camera_id, video_path]):
-        logger.error("Missing required job data")
-        return "Failed: Missing data"
+REDIS_URL = CONFIG.get("redis_url") or os.environ.get("REDIS_URL", "")
+QUEUE_NAME = CONFIG.get("queue_name", "ibvap-inference")
+BACKEND_URL = CONFIG.get("backend_url") or os.environ.get("BACKEND_URL", "")
 
-    if not os.path.exists(video_path):
-        logger.error(f"Video file not found at: {video_path}")
-        return f"Failed: File not found {video_path}"
 
-    processor = VideoProcessor()
-    final_stats = {"vehicles": 0, "persons": 0}
-    
-    def on_progress(data):
-        progress = data["progress"]
-        frame_idx = data["frame"]
-        total_frames = data["total_frames"]
-        vehicles = data.get("vehicles_detected", 0)
-        persons = data.get("persons_detected", 0)
-        events = data.get("events", [])
-        
-        final_stats["vehicles"] = vehicles
-        final_stats["persons"] = persons
-        
-        try:
-            requests.post(f"{BACKEND_URL}/videos/{video_id}/progress", json={
-                "progress": progress,
-                "frame": frame_idx,
-                "totalFrames": total_frames,
-                "status": "PROCESSING",
-                "fps": data.get("fps"),
-                "duration": data.get("duration"),
-                "vehiclesDetected": vehicles,
-                "personsDetected": persons,
-                "events": events
-            }, timeout=30)
-        except Exception as e:
-            logger.error(f"Failed to update progress to backend: {e}")
+async def process_job(job, job_token: str):
+    """Process a single inference job submitted via POST /jobs."""
+    logger.info("Processing job %s", job.id)
 
-    # Process video with adaptive frame skip in a background thread so asyncio event loop stays responsive
-    await asyncio.to_thread(processor.process_video, video_path, on_progress)
+    from bullmq_compat import update_progress
 
-    # Final completion update
+    data = job.data or {}
+    b64 = data.get("image_b64")
+    if not b64:
+        return {"error": "No image_b64 in job data"}
+
     try:
-        requests.post(f"{BACKEND_URL}/videos/{video_id}/progress", json={
-            "progress": 100,
-            "status": "COMPLETED",
-            "vehiclesDetected": final_stats["vehicles"],
-            "personsDetected": final_stats["persons"]
-        }, timeout=30)
-    except Exception as e:
-        logger.error(f"Failed to finalize progress to backend: {e}")
+        raw = base64.b64decode(b64)
+    except Exception:
+        return {"error": "Invalid base64"}
 
-    logger.info(f"Finished processing job {job.id}. Detected {final_stats['vehicles']} vehicles, {final_stats['persons']} persons.")
-    return "Success"
+    img = _guard_and_decode(raw)
+
+    # Wait for YOLO to be ready (may still be warming up)
+    det = registry.get("yolo")
+    retries = 0
+    while det is None and retries < 30:
+        await asyncio.sleep(2)
+        det = registry.get("yolo")
+        retries += 1
+
+    if det is None:
+        return {"error": "YOLO model failed to load"}
+
+    await update_progress(job, 10)
+
+    detections = det.predict(img)
+    result = {
+        "detections": _yolo_detections_to_list(detections),
+        "image_shape": list(img.shape[:2]),
+    }
+
+    await update_progress(job, 100)
+    logger.info("Job %s complete – %d detections", job.id, len(result["detections"]))
+    return result
+
 
 async def main():
-    logger.info("Starting Video Processing Worker connecting to Redis...")
-    
-    redis_opts = {
-        "host": REDIS_HOST,
-        "port": REDIS_PORT,
-    }
-    
-    worker = Worker("videoAnalysisQueue", process_video, {"connection": redis_opts})
-    logger.info("Video Processing Worker is listening for jobs on 'videoAnalysisQueue'...")
-    
-    # Run indefinitely
+    if not REDIS_URL:
+        logger.error("REDIS_URL is not set – worker cannot start.")
+        sys.exit(1)
+
+    # Warm models (blocking) before accepting jobs
+    logger.info("Warming models …")
+    registry.warm_all()
+
+    from bullmq_compat import create_worker
+
+    worker = create_worker(QUEUE_NAME, REDIS_URL, process_job, concurrency=1)
+    logger.info("Worker listening on queue '%s'", QUEUE_NAME)
+
+    # Graceful drain on SIGTERM
+    stop = asyncio.Event()
+
+    def _signal_handler():
+        logger.info("SIGTERM received – draining …")
+        stop.set()
+
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        try:
+            loop.add_signal_handler(sig, _signal_handler)
+        except NotImplementedError:
+            # Windows doesn't support add_signal_handler
+            pass
+
     try:
-        while True:
-            await asyncio.sleep(1)
+        await stop.wait()
     except (asyncio.CancelledError, KeyboardInterrupt):
-        logger.info("Worker stopped")
+        pass
+    finally:
+        logger.info("Closing worker …")
         await worker.close()
+        logger.info("Worker stopped")
+
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
         pass
-

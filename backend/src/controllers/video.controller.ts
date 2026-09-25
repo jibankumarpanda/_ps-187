@@ -73,6 +73,7 @@ export const updateProgress = async (req: Request, res: Response): Promise<void>
       personsDetected,
       intrusionCount,
       loiteringCount,
+      nightCount,
       events
     } = req.body;
 
@@ -98,6 +99,7 @@ export const updateProgress = async (req: Request, res: Response): Promise<void>
     if (personsDetected !== undefined) updateData.personsDetected = personsDetected;
     if (intrusionCount !== undefined) updateData.intrusionCount = intrusionCount;
     if (loiteringCount !== undefined) updateData.loiteringCount = loiteringCount;
+    if (nightCount !== undefined) updateData.nightCount = nightCount;
 
     if (status === 'COMPLETED') {
       updateData.completedAt = new Date();
@@ -155,9 +157,17 @@ export const updateProgress = async (req: Request, res: Response): Promise<void>
         if (ev.severity === 'CRITICAL' || ev.severity === 'WARNING') {
           try {
             // 1. Create System Event
+            const eventTypeMap: Record<string, string> = {
+              'INTRUSION_DETECTED': 'INTRUSION',
+              'LOITERING_DETECTED': 'LOITERING',
+              'NIGHT_ACTIVITY_DETECTED': 'NIGHT_ACTIVITY',
+              'SUSPICIOUS_ACTIVITY': 'SUSPICIOUS_ACTIVITY',
+              'ANPR_DETECTED': 'ANPR_MATCH',
+              'FACE_DETECTED': 'FACE_MATCH',
+            };
             const systemEvent = await EventService.create({
               eventCode: `EVT-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-              eventType: ev.type === 'INTRUSION_DETECTED' ? 'INTRUSION' : (ev.type === 'LOITERING_DETECTED' ? 'LOITERING' : 'SUSPICIOUS_ACTIVITY'),
+              eventType: (eventTypeMap[ev.type] || 'SUSPICIOUS_ACTIVITY') as any,
               objectType: ev.objectType || 'PERSON',
               cameraCode: camera?.cameraCode || 'UNKNOWN',
               bopCode: bopCode || 'UNKNOWN',
@@ -240,7 +250,8 @@ export const updateProgress = async (req: Request, res: Response): Promise<void>
       vehiclesDetected: videoJob.vehiclesDetected,
       personsDetected: videoJob.personsDetected,
       intrusionCount: videoJob.intrusionCount,
-      loiteringCount: videoJob.loiteringCount
+      loiteringCount: videoJob.loiteringCount,
+      nightCount: videoJob.nightCount
     }, bopCode);
 
     res.json({ success: true, data: videoJob });
