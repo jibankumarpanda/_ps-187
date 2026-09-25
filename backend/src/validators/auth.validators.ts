@@ -28,4 +28,5 @@ export const refreshSchema = z.object({
 
 export const faceVerifySchema = z.object({
   descriptor: z.array(z.number()).length(128, 'Face descriptor must be a 128-element array'),
+  forceEnroll: z.boolean().optional(),
 });

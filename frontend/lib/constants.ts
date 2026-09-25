@@ -75,7 +75,7 @@ export const EVENT_TYPE_LABELS: Record<string, string> = {
   INTRUSION: 'Intrusion Alert',
   LOITERING: 'Loitering Alert',
   ABANDONED_OBJECT: 'Abandoned Object',
-  SUSPICIOUS_ACTIVITY: 'Suspicious Activity',
+  SUSPICIOUS_ACTIVITY: 'Crowd Gathering / Suspicious',
   NIGHT_ACTIVITY: 'Night Perimeter Activity',
 };
 

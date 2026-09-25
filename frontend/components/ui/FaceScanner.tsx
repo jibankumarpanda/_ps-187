@@ -16,6 +16,7 @@ type ScanState =
   | 'scanning'
   | 'capturing'
   | 'verifying'
+  | 'failed_attempt'
   | 'success'
   | 'enrolled'
   | 'error';
@@ -51,10 +52,13 @@ export function FaceScanner({ onVerificationComplete, accessToken }: FaceScanner
   const streamRef = useRef<MediaStream | null>(null);
   const loopTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isProcessingRef = useRef(false);
+  const isReenrollingRef = useRef(false);
 
   const [scanState, setScanState] = useState<ScanState>(modelsAreReady ? 'initializing' : 'loading_models');
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [modelsLoaded, setModelsLoaded] = useState(modelsAreReady);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [isReenrolling, setIsReenrolling] = useState(false);
   const [resultData, setResultData] = useState<{ status: 'enrolled' | 'verified'; message: string; distance?: number } | null>(null);
 
   const scanStateRef = useRef<ScanState>(scanState);
@@ -130,8 +134,6 @@ export function FaceScanner({ onVerificationComplete, accessToken }: FaceScanner
   }, [modelsLoaded]);
 
   // --- Ultra-Fast Detection Loop ---
-  // In scanning phase: run ONLY lightweight tinyFaceDetector (no landmarks, no descriptors)
-  // This takes ~8ms per tick instead of 300ms!
   const runDetectionLoop = useCallback(() => {
     if (loopTimerRef.current) clearTimeout(loopTimerRef.current);
 
@@ -147,10 +149,10 @@ export function FaceScanner({ onVerificationComplete, accessToken }: FaceScanner
       try {
         isProcessingRef.current = true;
 
-        // Step 1: Ultra-fast face presence check (inputSize: 160 takes ~8ms)
+        // Step 1: Fast face presence check
         const face = await faceapi.detectSingleFace(
           video,
-          new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.45 })
+          new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.35 })
         );
 
         if (face && scanStateRef.current === 'scanning') {
@@ -160,8 +162,8 @@ export function FaceScanner({ onVerificationComplete, accessToken }: FaceScanner
 
           // Step 2: Extract landmarks and descriptor ONCE on this detected face
           const fullDetection = await faceapi
-            .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.45 }))
-            .withFaceLandmarks(true) // uses fast tiny landmark model
+            .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.35 }))
+            .withFaceLandmarks(true)
             .withFaceDescriptor();
 
           if (fullDetection) {
@@ -169,24 +171,46 @@ export function FaceScanner({ onVerificationComplete, accessToken }: FaceScanner
             scanStateRef.current = 'verifying';
 
             const descriptor = Array.from(fullDetection.descriptor);
+            const forceEnroll = isReenrollingRef.current;
 
-            // Send to backend
-            const result = await verifyFace(descriptor, accessToken);
-            setResultData(result);
+            try {
+              // Send to backend
+              const result = await verifyFace(descriptor, accessToken, forceEnroll);
+              isReenrollingRef.current = false;
+              setIsReenrolling(false);
+              setResultData(result);
 
-            if (result.status === 'enrolled') {
-              setScanState('enrolled');
-              scanStateRef.current = 'enrolled';
-            } else {
-              setScanState('success');
-              scanStateRef.current = 'success';
+              if (result.status === 'enrolled') {
+                setScanState('enrolled');
+                scanStateRef.current = 'enrolled';
+              } else {
+                setScanState('success');
+                scanStateRef.current = 'success';
+              }
+
+              // Quick smooth transition to dashboard (400ms)
+              setTimeout(() => {
+                onVerificationComplete(true, result);
+              }, 400);
+              return;
+            } catch (verifyErr: any) {
+              console.warn('Face verification rejected:', verifyErr.message);
+              setFailedAttempts((prev) => prev + 1);
+              setErrorMsg(verifyErr.message || 'Face mismatch. Please hold steady.');
+              setScanState('failed_attempt');
+              scanStateRef.current = 'failed_attempt';
+
+              // Auto-recover back to scanning after 1.8 seconds so user can retry
+              setTimeout(() => {
+                if (scanStateRef.current === 'failed_attempt') {
+                  setScanState('scanning');
+                  scanStateRef.current = 'scanning';
+                  setErrorMsg('');
+                  runDetectionLoop();
+                }
+              }, 1800);
+              return;
             }
-
-            // Quick smooth transition to dashboard (400ms)
-            setTimeout(() => {
-              onVerificationComplete(true, result);
-            }, 400);
-            return;
           } else {
             // Revert back to scanning if dropped
             setScanState('scanning');
@@ -198,7 +222,7 @@ export function FaceScanner({ onVerificationComplete, accessToken }: FaceScanner
       } finally {
         isProcessingRef.current = false;
         if (scanStateRef.current === 'scanning') {
-          loopTimerRef.current = setTimeout(runDetectionLoop, 80); // 12 FPS throttle leaves CPU free
+          loopTimerRef.current = setTimeout(runDetectionLoop, 80);
         }
       }
     };
@@ -216,20 +240,30 @@ export function FaceScanner({ onVerificationComplete, accessToken }: FaceScanner
     };
   }, [scanState, runDetectionLoop]);
 
+  // Explicit re-enroll trigger
+  const handleTriggerReenroll = () => {
+    isReenrollingRef.current = true;
+    setIsReenrolling(true);
+    setErrorMsg('');
+    setScanState('scanning');
+    scanStateRef.current = 'scanning';
+    runDetectionLoop();
+  };
+
   // Fast-track manual bypass
   const handleFastTrack = async () => {
     try {
       setScanState('verifying');
-      // Generate standard mock 128-d vector for fast-track authentication
+      // Generate standard mock 128-d vector for fast-track authentication with forceEnroll: true
       const fastTrackVector = new Array(128).fill(0).map((_, i) => Math.sin(i * 0.1) * 0.1);
-      const result = await verifyFace(fastTrackVector, accessToken);
+      const result = await verifyFace(fastTrackVector, accessToken, true);
       setResultData(result);
       setScanState('success');
       setTimeout(() => {
         onVerificationComplete(true, result);
       }, 300);
     } catch {
-      // Direct pass-through if offline
+      // Direct pass-through if offline or network error
       setScanState('success');
       setTimeout(() => {
         onVerificationComplete(true, { status: 'verified', message: 'Fast-Track Authenticated' });
@@ -292,7 +326,7 @@ export function FaceScanner({ onVerificationComplete, accessToken }: FaceScanner
         )}
 
         {/* Active camera states */}
-        {['scanning', 'capturing', 'verifying', 'success', 'enrolled'].includes(scanState) && (
+        {['scanning', 'capturing', 'verifying', 'failed_attempt', 'success', 'enrolled'].includes(scanState) && (
           <>
             <video
               ref={(el) => {
@@ -332,6 +366,13 @@ export function FaceScanner({ onVerificationComplete, accessToken }: FaceScanner
               </div>
             )}
 
+            {/* Failed attempt overlay */}
+            {scanState === 'failed_attempt' && (
+              <div className="absolute inset-0 border-4 border-red-500 rounded-full animate-pulse flex items-center justify-center bg-red-950/20">
+                <AlertCircle className="w-12 h-12 text-red-500 animate-bounce" />
+              </div>
+            )}
+
             {/* Success overlay */}
             {scanState === 'success' && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/80 backdrop-blur-sm z-10 animate-fade-in">
@@ -352,28 +393,43 @@ export function FaceScanner({ onVerificationComplete, accessToken }: FaceScanner
       </div>
 
       {/* Status text */}
-      <div className="text-center h-10 flex flex-col items-center justify-center">
+      <div className="text-center min-h-[44px] flex flex-col items-center justify-center px-4">
         {scanState === 'loading_models' && (
           <p className="text-xs font-semibold text-muted-foreground animate-fade-in">
             Loading biometric neural network...
           </p>
         )}
         {scanState === 'scanning' && (
-          <div className="flex items-center gap-1.5 text-accent animate-fade-in font-mono text-xs font-bold">
-            <ScanFace className="w-4 h-4 animate-pulse" />
-            <span>Scanning for face in frame...</span>
+          <div className="flex flex-col items-center gap-1 animate-fade-in">
+            <div className="flex items-center gap-1.5 text-accent font-mono text-xs font-bold">
+              <ScanFace className="w-4 h-4 animate-pulse" />
+              <span>{isReenrolling ? 'Hold steady to capture new biometrics...' : 'Scanning for face in frame...'}</span>
+            </div>
+            {isReenrolling && (
+              <span className="text-[10px] text-accent/80 font-mono">RE-ENROLLMENT MODE ACTIVE</span>
+            )}
           </div>
         )}
         {scanState === 'capturing' && (
           <div className="flex items-center gap-1.5 text-green-400 animate-fade-in font-mono text-xs font-bold">
             <Camera className="w-4 h-4" />
-            <span>Face captured! Extracting biometric vector...</span>
+            <span>Face captured! Extracting 128-d biometric vector...</span>
           </div>
         )}
         {scanState === 'verifying' && (
           <div className="flex items-center gap-1.5 text-accent animate-fade-in font-mono text-xs">
             <div className="w-3.5 h-3.5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-            <span>Verifying biometric hash against database...</span>
+            <span>{isReenrolling ? 'Saving new biometric face profile...' : 'Verifying biometric hash against database...'}</span>
+          </div>
+        )}
+        {scanState === 'failed_attempt' && (
+          <div className="flex flex-col items-center animate-fade-in">
+            <p className="text-xs font-bold text-red-400 font-mono">
+              {errorMsg.includes('Distance') ? errorMsg : 'Face mismatch — biometric distance exceeds threshold'}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5 font-mono">
+              Auto-retrying in 2s... or click Re-enroll Face below
+            </p>
           </div>
         )}
         {scanState === 'success' && (
@@ -384,14 +440,26 @@ export function FaceScanner({ onVerificationComplete, accessToken }: FaceScanner
         )}
         {scanState === 'enrolled' && (
           <div className="flex flex-col items-center animate-fade-in">
-            <p className="text-xs font-bold text-accent">Face Enrolled Successfully</p>
+            <p className="text-xs font-bold text-accent">Face Enrolled Successfully ✓</p>
             <p className="text-[10px] text-muted-foreground">Redirecting to C2 Dashboard...</p>
           </div>
         )}
       </div>
 
-      {/* ── Fast-Track 1-Click Biometric Bypass ── */}
-      <div className="pt-1">
+      {/* ── Action Buttons ── */}
+      <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+        {/* Re-enroll button appears when there are failed attempts or user wants to overwrite */}
+        {(failedAttempts > 0 || scanState === 'failed_attempt') && (
+          <button
+            type="button"
+            onClick={handleTriggerReenroll}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-accent/20 hover:bg-accent/30 text-accent border border-accent/60 text-xs font-mono font-bold transition-all shadow-sm"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            Re-enroll My Face
+          </button>
+        )}
+
         <button
           type="button"
           onClick={handleFastTrack}

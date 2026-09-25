@@ -26,19 +26,55 @@ class ObjectTracker:
 		if not results:
 			return []
 		result = results[0]
-		if result.boxes.id is None:
+		vehicle_classes = {"car", "truck", "bus", "motorcycle", "bicycle"}
+		surveillance_classes = {"person", "car", "truck", "bus", "motorcycle", "bicycle"}
+
+		if result.boxes is None or len(result.boxes) == 0:
 			return []
+
+		if result.boxes.id is None:
+			output = []
+			for index in range(len(result.boxes)):
+				class_id = int(result.boxes.cls[index].item())
+				class_name = str(result.names[class_id]).lower()
+				if self.detector.class_filter:
+					if class_name not in self.detector.class_filter:
+						continue
+				elif class_name not in surveillance_classes:
+					continue
+				conf = float(result.boxes.conf[index].item())
+				if class_name in vehicle_classes and conf < 0.55:
+					continue
+				bbox = [float(value) for value in result.boxes.xyxy[index].tolist()]
+				output.append({
+					"track_id": index + 1,
+					"class_name": class_name,
+					"confidence": conf,
+					"bbox": bbox,
+					"center_x": (bbox[0] + bbox[2]) / 2,
+					"center_y": bbox[3],
+					"frame_number": frame_number,
+					"timestamp": timestamp or datetime.now(timezone.utc).isoformat(),
+				})
+			return output
+
 		output = []
 		for index, track_id in enumerate(result.boxes.id.int().tolist()):
 			class_id = int(result.boxes.cls[index].item())
-			class_name = str(result.names[class_id])
-			if self.detector.class_filter and class_name not in self.detector.class_filter:
+			class_name = str(result.names[class_id]).lower()
+			if self.detector.class_filter:
+				if class_name not in self.detector.class_filter:
+					continue
+			elif class_name not in surveillance_classes:
+				continue
+			conf = float(result.boxes.conf[index].item())
+			if class_name in vehicle_classes and conf < 0.55:
 				continue
 			bbox = [float(value) for value in result.boxes.xyxy[index].tolist()]
 			output.append({
 				"track_id": int(track_id),
 				"class_name": class_name,
-				"confidence": float(result.boxes.conf[index].item()),
+				"confidence": conf,
 				"bbox": bbox,
 				"center_x": (bbox[0] + bbox[2]) / 2,
 				"center_y": bbox[3],

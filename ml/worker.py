@@ -34,7 +34,14 @@ async def process_video(job: Job, job_token: str):
         return f"Failed: File not found {video_path}"
 
     processor = VideoProcessor()
-    final_stats = {"vehicles": 0, "persons": 0}
+    final_stats = {
+        "vehicles": 0,
+        "persons": 0,
+        "intrusions": 0,
+        "loitering": 0,
+        "night": 0,
+        "suspicious": 0
+    }
     
     def on_progress(data):
         progress = data["progress"]
@@ -42,10 +49,18 @@ async def process_video(job: Job, job_token: str):
         total_frames = data["total_frames"]
         vehicles = data.get("vehicles_detected", 0)
         persons = data.get("persons_detected", 0)
+        intrusions = data.get("intrusions_detected", 0)
+        loitering = data.get("loitering_detected", 0)
+        night = data.get("night_detected", 0)
+        suspicious = data.get("suspicious_detected", 0)
         events = data.get("events", [])
         
         final_stats["vehicles"] = vehicles
         final_stats["persons"] = persons
+        final_stats["intrusions"] = intrusions
+        final_stats["loitering"] = loitering
+        final_stats["night"] = night
+        final_stats["suspicious"] = suspicious
         
         try:
             requests.post(f"{BACKEND_URL}/videos/{video_id}/progress", json={
@@ -57,6 +72,9 @@ async def process_video(job: Job, job_token: str):
                 "duration": data.get("duration"),
                 "vehiclesDetected": vehicles,
                 "personsDetected": persons,
+                "intrusionCount": intrusions,
+                "loiteringCount": loitering,
+                "nightCount": night,
                 "events": events
             }, timeout=30)
         except Exception as e:
@@ -71,12 +89,19 @@ async def process_video(job: Job, job_token: str):
             "progress": 100,
             "status": "COMPLETED",
             "vehiclesDetected": final_stats["vehicles"],
-            "personsDetected": final_stats["persons"]
+            "personsDetected": final_stats["persons"],
+            "intrusionCount": final_stats["intrusions"],
+            "loiteringCount": final_stats["loitering"],
+            "nightCount": final_stats["night"]
         }, timeout=30)
     except Exception as e:
         logger.error(f"Failed to finalize progress to backend: {e}")
 
-    logger.info(f"Finished processing job {job.id}. Detected {final_stats['vehicles']} vehicles, {final_stats['persons']} persons.")
+    logger.info(
+        f"Finished processing job {job.id}. Detected {final_stats['vehicles']} vehicles, "
+        f"{final_stats['persons']} persons, {final_stats['intrusions']} intrusions, "
+        f"{final_stats['loitering']} loitering, {final_stats['night']} night events."
+    )
     return "Success"
 
 async def main():

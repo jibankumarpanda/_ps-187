@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UploadCloud, RefreshCw, CheckCircle, AlertTriangle, Car, User, Clock } from 'lucide-react';
+import { UploadCloud, RefreshCw, CheckCircle, AlertTriangle, Car, User, Clock, Moon, ShieldAlert } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { fetchWithAuth, getToken } from '@/lib/api';
 
@@ -29,6 +29,8 @@ export function VideoAnalysis({ cameraId }: VideoAnalysisProps) {
     vehicles: 0,
     intrusions: 0,
     loitering: 0,
+    night: 0,
+    suspicious: 0,
   });
 
   // Load existing job for this camera on mount
@@ -50,9 +52,11 @@ export function VideoAnalysis({ cameraId }: VideoAnalysisProps) {
             vehicles: job.vehiclesDetected || 0,
             intrusions: job.intrusionCount || 0,
             loitering: job.loiteringCount || 0,
+            night: job.nightCount || 0,
+            suspicious: 0,
           });
           if (Array.isArray(job.events) && job.events.length > 0) {
-            setRecentEvents(job.events.slice(0, 10).map((e: any) => ({
+            setRecentEvents(job.events.slice(0, 15).map((e: any) => ({
               type: e.type,
               subType: e.metadata?.subType || e.type,
               trackId: e.trackId,
@@ -92,6 +96,7 @@ export function VideoAnalysis({ cameraId }: VideoAnalysisProps) {
             persons: data.personsDetected ?? prev.persons,
             intrusions: data.intrusionCount ?? prev.intrusions,
             loitering: data.loiteringCount ?? prev.loitering,
+            night: data.nightCount ?? prev.night,
           }));
         }
       }
@@ -106,13 +111,19 @@ export function VideoAnalysis({ cameraId }: VideoAnalysisProps) {
           VEHICLE: 'vehicles',
           VEHICLE_DETECTED: 'vehicles',
           INTRUSION: 'intrusions',
+          INTRUSION_DETECTED: 'intrusions',
           LOITERING: 'loitering',
+          LOITERING_DETECTED: 'loitering',
+          NIGHT_ACTIVITY: 'night',
+          NIGHT_ACTIVITY_DETECTED: 'night',
+          NIGHT_MOVEMENT: 'night',
+          SUSPICIOUS_ACTIVITY: 'suspicious',
         };
         const key = statKeyByType[type];
         if (key) {
           setStats(prev => ({
             ...prev,
-            [key]: prev[key] + 1
+            [key]: (prev[key] || 0) + 1
           }));
         }
 
@@ -124,7 +135,7 @@ export function VideoAnalysis({ cameraId }: VideoAnalysisProps) {
             frame: data.frame,
             confidence: data.confidence,
           },
-          ...prev.slice(0, 9)
+          ...prev.slice(0, 14)
         ]);
       }
     });
@@ -154,7 +165,7 @@ export function VideoAnalysis({ cameraId }: VideoAnalysisProps) {
         setFileName(file.name);
         setStatus('QUEUED');
         setProgress(0);
-        setStats({ persons: 0, vehicles: 0, intrusions: 0, loitering: 0 });
+        setStats({ persons: 0, vehicles: 0, intrusions: 0, loitering: 0, night: 0, suspicious: 0 });
         setRecentEvents([]);
       } else {
         setStatus('ERROR');
@@ -177,7 +188,7 @@ export function VideoAnalysis({ cameraId }: VideoAnalysisProps) {
       if (res.ok) {
         setStatus('QUEUED');
         setProgress(0);
-        setStats({ persons: 0, vehicles: 0, intrusions: 0, loitering: 0 });
+        setStats({ persons: 0, vehicles: 0, intrusions: 0, loitering: 0, night: 0, suspicious: 0 });
         setRecentEvents([]);
       }
     } catch (err) {
@@ -269,15 +280,15 @@ export function VideoAnalysis({ cameraId }: VideoAnalysisProps) {
             </div>
 
             {/* AI Object Detection Counters */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               <StatBox 
-                label="VEHICLES DETECTED" 
+                label="VEHICLES" 
                 value={stats.vehicles} 
                 icon={<Car className="w-4 h-4 text-[#F4C95D]" />}
                 color="#F4C95D"
               />
               <StatBox 
-                label="PERSONS DETECTED" 
+                label="PERSONS" 
                 value={stats.persons} 
                 icon={<User className="w-4 h-4 text-accent" />}
                 color="#37B9FF"
@@ -294,37 +305,63 @@ export function VideoAnalysis({ cameraId }: VideoAnalysisProps) {
                 icon={<Clock className="w-4 h-4 text-[#FF9F43]" />}
                 color="#FF9F43"
               />
+              <StatBox 
+                label="NIGHT ACTIVITY" 
+                value={stats.night} 
+                icon={<Moon className="w-4 h-4 text-[#A78BFA]" />}
+                color="#A78BFA"
+              />
             </div>
 
             {/* Recent Detection Stream */}
             {recentEvents.length > 0 && (
               <div className="bg-[#0F151C] border border-border rounded-none p-4 space-y-3">
                 <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-                  <span>Live Object Detection Feed</span>
-                  <span className="text-[10px] text-green-500 font-mono">ByteTrack Active</span>
+                  <span>Live Object & Activity Stream</span>
+                  <span className="text-[10px] text-green-500 font-mono">ByteTrack + YOLO Trained CC</span>
                 </div>
-                <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                  {recentEvents.map((ev, i) => (
-                    <div key={i} className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded bg-card border border-border/60">
-                      <div className="flex items-center gap-2">
-                        {ev.type.includes('VEHICLE') ? (
-                          <Car className="w-3.5 h-3.5 text-[#F4C95D]" />
-                        ) : (
-                          <User className="w-3.5 h-3.5 text-accent" />
-                        )}
-                        <span className="font-semibold text-foreground capitalize">{ev.subType || ev.type}</span>
-                        {ev.trackId !== undefined && (
-                          <span className="text-[10px] font-mono text-muted-foreground">Track #{ev.trackId}</span>
-                        )}
+                <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                  {recentEvents.map((ev, i) => {
+                    const isNight = ev.type.includes('NIGHT');
+                    const isIntrusion = ev.type.includes('INTRUSION');
+                    const isLoitering = ev.type.includes('LOITERING');
+                    const isSuspicious = ev.type.includes('SUSPICIOUS');
+                    const isVehicle = ev.type.includes('VEHICLE');
+
+                    return (
+                      <div key={i} className="flex items-center justify-between text-xs py-2 px-3 rounded bg-card border border-border/60">
+                        <div className="flex items-center gap-2.5">
+                          {isNight ? (
+                            <Moon className="w-3.5 h-3.5 text-[#A78BFA]" />
+                          ) : isIntrusion ? (
+                            <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+                          ) : isLoitering ? (
+                            <Clock className="w-3.5 h-3.5 text-[#FF9F43]" />
+                          ) : isSuspicious ? (
+                            <ShieldAlert className="w-3.5 h-3.5 text-amber-500" />
+                          ) : isVehicle ? (
+                            <Car className="w-3.5 h-3.5 text-[#F4C95D]" />
+                          ) : (
+                            <User className="w-3.5 h-3.5 text-accent" />
+                          )}
+                          <div>
+                            <span className="font-semibold text-foreground capitalize mr-2">
+                              {ev.subType || ev.type.replace(/_/g, ' ')}
+                            </span>
+                            {ev.trackId !== undefined && (
+                              <span className="text-[10px] font-mono text-muted-foreground">ID #{ev.trackId}</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 font-mono text-[10px] text-muted-foreground">
+                          {ev.frame !== undefined && <span>Frame {ev.frame}</span>}
+                          {ev.confidence !== undefined && (
+                            <span className="text-green-500">{Math.round(ev.confidence * 100)}% conf</span>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3 font-mono text-[10px] text-muted-foreground">
-                        {ev.frame !== undefined && <span>Frame {ev.frame}</span>}
-                        {ev.confidence !== undefined && (
-                          <span className="text-green-500">{Math.round(ev.confidence * 100)}% conf</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

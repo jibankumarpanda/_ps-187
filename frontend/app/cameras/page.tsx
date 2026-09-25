@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Camera, Plus, Search } from 'lucide-react';
+import { Camera, Plus, Search, Smartphone } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { CameraTable } from '@/components/cameras/CameraTable';
 import { AddCameraModal } from '@/components/cameras/AddCameraModal';
@@ -9,6 +9,7 @@ import { UploadCustomVideoModal } from '@/components/cameras/UploadCustomVideoMo
 import { FilterBar } from '@/components/ui/FilterBar';
 import { useCameras } from '@/hooks/useCameras';
 import { TableSkeleton } from '@/components/ui/LoadingSkeleton';
+import Link from 'next/link';
 
 export default function CamerasPage() {
   const { cameras, isLoading, addCamera, deleteCamera, toggleStatus } = useCameras();
@@ -43,6 +44,13 @@ export default function CamerasPage() {
             >
               Upload Custom Video
             </button>
+            <Link
+              href="/cameras/mobile"
+              className="flex items-center gap-1.5 px-4 py-2 bg-[#0F151C] border border-accent/40 hover:border-accent hover:bg-accent/10 text-accent rounded-none text-xs font-bold transition-all shadow-lg"
+            >
+              <Smartphone className="w-4 h-4" />
+              Add Mobile Camera
+            </Link>
             <button
               onClick={() => setIsAddModalOpen(true)}
               className="flex items-center gap-1.5 px-4 py-2 bg-accent hover:bg-accent/90 text-[#071018] rounded-none text-xs font-bold transition-all shadow-lg"

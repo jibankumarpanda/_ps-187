@@ -2,13 +2,14 @@ model_path: yolo11n.pt
 dataset_yaml: data/merged-detection/data.yaml
 camera_id: BOP12-CAM04
 bop_id: BOP-12
-confidence_threshold: 0.35
+confidence_threshold: 0.25
 iou_threshold: 0.5
 device: null
 classes: null
 tracker: bytetrack.yaml
 night_hours: [22, 6]
 loitering_seconds: 60
+gathering_threshold: 2
 process_every_n_frames: 1
 ocr_threshold: 0.5
 face_cascade_path: null
