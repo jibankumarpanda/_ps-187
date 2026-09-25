@@ -175,7 +175,7 @@ export async function login(email: string, password: string) {
   return data.data;
 }
 
-export async function verifyFace(descriptor: number[], token?: string) {
+export async function verifyFace(descriptor: number[], token?: string, forceEnroll = false) {
   const authToken = token || getToken();
   const res = await fetch(`${API_BASE}/auth/face-verify`, {
     method: 'POST',
@@ -183,7 +183,7 @@ export async function verifyFace(descriptor: number[], token?: string) {
       'Content-Type': 'application/json',
       ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
     },
-    body: JSON.stringify({ descriptor }),
+    body: JSON.stringify({ descriptor, forceEnroll }),
   });
   const data = await res.json();
   if (!res.ok || !data.success) {

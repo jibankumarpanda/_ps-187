@@ -1,0 +1,14 @@
+{
+  "name": "ibvap-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "IBVAP - Intelligent Border Video Analytics Platform",
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "dev:mobile": "npm --prefix frontend run dev:mobile",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "build": "npm --prefix frontend run build",
+    "start": "npm --prefix frontend run start"
+  }
+}

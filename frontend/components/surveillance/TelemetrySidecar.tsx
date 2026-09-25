@@ -95,7 +95,7 @@ export function TelemetrySidecar({
       showToast({
         title: 'QRF Security Patrol Dispatched',
         message: `Quick Reaction Team alerted for sector ${activeCameraCode}. Coordinates locked.`,
-        type: 'critical',
+        type: 'error',
       });
     }, 800);
   };
