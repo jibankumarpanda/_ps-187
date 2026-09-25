@@ -48,6 +48,8 @@ class CameraStreamWorker:
         self._last_reported_at = 0.0
         self._last_events: dict[tuple[str, int | None, str], float] = {}
         self._fence_configured = False
+        self.latest_frame: Any = None
+        self.latest_annotated_frame: Any = None
 
     def start(self) -> None:
         self.thread = threading.Thread(
@@ -170,9 +172,25 @@ class CameraStreamWorker:
                             try:
                                 self._configure_fence(frame)
                                 result = self.pipeline.process_frame(frame, frame_number)
+
+                                # Render stick figures and detections on annotated frame
+                                annotated = frame.copy()
+                                if getattr(self.pipeline, "pose_estimator", None) and result.get("stick_figures"):
+                                    raw_figs = self.pipeline.pose_estimator.detect(frame, result.get("tracks"))
+                                    annotated = self.pipeline.pose_estimator.draw(
+                                        annotated,
+                                        raw_figs,
+                                        privacy_mode=getattr(self.pipeline, "privacy_mode", False),
+                                    )
+                                elif result.get("detections"):
+                                    annotated = self.pipeline.detector.draw(annotated, result["detections"])
+
+                                self.latest_annotated_frame = annotated
+                                self.latest_frame = frame
+
                                 events = self._new_events(result["events"])
                                 if events:
-                                    self._dispatch(frame, events, frame_number, result["timestamp"])
+                                    self._dispatch(annotated, events, frame_number, result["timestamp"])
                             except Exception as exc:
                                 logger.exception("Inference failed for %s: %s", self.config.camera_id, exc)
                                 self._report("DEGRADED", "ERROR", source_fps, "AI inference failed; continuing")
