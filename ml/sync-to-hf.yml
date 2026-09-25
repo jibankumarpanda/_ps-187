@@ -9,12 +9,6 @@ on:
     paths:
       - 'ml/**'
   workflow_dispatch:
-    inputs:
-      force_push:
-        description: 'Force push to Hugging Face Space'
-        required: false
-        default: false
-        type: boolean
 
 jobs:
   sync-to-hf:
@@ -25,63 +19,89 @@ jobs:
       - name: Checkout GitHub Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-          lfs: true
+          fetch-depth: 1
 
-      - name: Install Git LFS
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Hugging Face Hub SDK
         run: |
-          git lfs install
+          pip install --upgrade huggingface_hub
 
-      - name: Sync and Push ml/ to Hugging Face Space
+      - name: Auto-Create Space & Sync ml/ to Hugging Face
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_SPACE: ${{ secrets.HF_SPACE || vars.HF_SPACE || 'jibankumarpanda/ibvap-ml' }}
+          HF_SPACE: ${{ secrets.HF_SPACE || vars.HF_SPACE }}
         run: |
-          if [ -z "$HF_TOKEN" ]; then
-            echo "::error::HF_TOKEN secret is missing! Please configure HF_TOKEN (with write permissions) in GitHub Secrets."
-            exit 1
-          fi
+          python - << 'EOF'
+          import os
+          import sys
+          from huggingface_hub import HfApi
 
-          echo "Target HF Space: $HF_SPACE"
+          token = os.environ.get("HF_TOKEN", "").strip()
+          if not token:
+              print("::error::HF_TOKEN secret is not set! Please add HF_TOKEN with 'write' permissions in GitHub Secrets.")
+              sys.exit(1)
 
-          # Configure Git credentials
-          git config --global user.email "actions@github.com"
-          git config --global user.name "GitHub Actions"
+          api = HfApi(token=token)
 
-          # Clone the Hugging Face Space repository
-          echo "Cloning Hugging Face Space..."
-          git clone "https://user:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}" hf_repo
+          try:
+              user_info = api.whoami()
+              hf_username = user_info["name"]
+              print(f"Authenticated as Hugging Face user: {hf_username}")
+          except Exception as err:
+              print(f"::error::Authentication failed with HF_TOKEN. Ensure the token is valid and has 'write' permissions: {err}")
+              sys.exit(1)
 
-          # Clean existing space files (preserve .git)
-          find hf_repo -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          # Determine target space name
+          raw_space = os.environ.get("HF_SPACE", "").strip()
+          if not raw_space:
+              target_space = f"{hf_username}/ibvap-ml"
+          elif "/" in raw_space:
+              target_space = raw_space
+          else:
+              target_space = f"{hf_username}/{raw_space}"
 
-          # Copy ml/ directory contents into root of hf_repo
-          cp -r ml/. hf_repo/
+          print(f"Target Hugging Face Space: {target_space}")
 
-          cd hf_repo
+          # Ensure the Space exists (create it automatically if not found)
+          print(f"Checking/creating Hugging Face Space '{target_space}' with Docker SDK...")
+          try:
+              api.create_repo(
+                  repo_id=target_space,
+                  repo_type="space",
+                  space_sdk="docker",
+                  exist_ok=True,
+              )
+              print(f"Space '{target_space}' is ready.")
+          except Exception as err:
+              print(f"Notice on create_repo: {err}")
 
-          # Remove non-inference and heavy training artifacts before pushing
-          rm -rf runs/ tests/ notebooks/ .venv/ venv/ .pytest_cache
-          rm -rf data/traffic-detection-project/ data/merged-detection/
-          find . -name "*.pyc" -delete
-          find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+          # Upload ml directory contents to the root of the Space
+          print(f"Syncing ml/ folder to Hugging Face Space '{target_space}'...")
+          commit_hash = os.environ.get("GITHUB_SHA", "update")[:7]
+          api.upload_folder(
+              folder_path="ml",
+              repo_id=target_space,
+              repo_type="space",
+              commit_message=f"Sync ML from GitHub [{commit_hash}]",
+              ignore_patterns=[
+                  "runs/**",
+                  "tests/**",
+                  "notebooks/**",
+                  ".venv/**",
+                  "venv/**",
+                  "__pycache__/**",
+                  "*.pyc",
+                  "data/traffic-detection-project/**",
+                  "data/merged-detection/**",
+                  "sync-to-hf.yml",
+              ],
+          )
 
-          # Track model weights in Git LFS if present
-          git lfs track "*.pt" "*.onnx" "*.bin" "*.pth" "*.weights" "*.engine" 2>/dev/null || true
-          [ -f .gitattributes ] && git add .gitattributes
-
-          git add -A
-
-          # Commit and push if there are changes
-          if git diff --staged --quiet; then
-            echo "No changes detected between ml/ and Hugging Face Space."
-          else
-            echo "Changes detected. Pushing to Hugging Face Space..."
-            git commit -m "Sync ML from GitHub [${GITHUB_SHA::7}] - $(date -u +'%Y-%m-%d %H:%M:%SZ')"
-            if [ "${{ github.event.inputs.force_push }}" = "true" ]; then
-              git push --force origin main
-            else
-              git push origin main
-            fi
-            echo "Successfully synced to Hugging Face Space!"
-          fi
+          print(f"\n=======================================================")
+          print(f"SUCCESS! Deployed to: https://huggingface.co/spaces/{target_space}")
+          print(f"=======================================================\n")
+          EOF
