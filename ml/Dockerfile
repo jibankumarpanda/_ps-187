@@ -55,21 +55,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install torch torchvision \
         --index-url https://download.pytorch.org/whl/cpu
 
-# ── PaddlePaddle CPU ─────────────────────────────────────────────────────────
-# paddlepaddle is NOT on default PyPI. It is a mandatory runtime dependency
-# of paddleocr — without it you get ImportError at import time.
-# Pin to a version with confirmed stable py3.10 CPU wheels.
-RUN pip install paddlepaddle==2.6.2 \
-        -f https://www.paddlepaddle.org.cn/packages/stable/cpu/
-
 # ── Python dependencies ─────────────────────────────────────────────────────
 # COPY requirements.txt first (separate layer) so code-only edits don't
-# bust the ~10 min dependency layer.
+# bust the dependency layer.
 COPY requirements.txt /tmp/requirements.txt
 RUN pip install -r /tmp/requirements.txt \
-    # paddleocr's setup.py may pin opencv-python<=4.6 and silently downgrade
-    # the headless build, breaking ultralytics. Re-assert AFTER install.
-    && pip install --force-reinstall "opencv-python-headless>=4.6.0.66" \
     && rm /tmp/requirements.txt
 
 # ── Non-root user (HF requirement: uid 1000, named "user") ──────────────────
