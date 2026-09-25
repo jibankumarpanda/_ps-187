@@ -73,6 +73,10 @@ class YOLODetector:
 			# Suppress false vehicle detections from indoor background objects
 			if class_name in vehicle_classes and conf < 0.55:
 				continue
+			# Lower threshold for person detection to catch people in
+			# low-quality mobile camera streams and at distance
+			if class_name == "person" and conf < 0.25:
+				continue
 
 			detection = Detection(
 				class_id=class_id,

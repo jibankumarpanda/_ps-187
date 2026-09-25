@@ -95,6 +95,8 @@ export function LiveWebcamCCTV({
   const trackCounterRef = useRef(0);
   const cachedTargetsRef = useRef<DetectionTarget[]>([]);
   const isDetectingRef = useRef(false);
+  const remoteImgLoadedRef = useRef(false);
+  const lastRemoteUrlRef = useRef<string | null>(null);
 
   const [streamActive, setStreamActive] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
@@ -148,6 +150,8 @@ export function LiveWebcamCCTV({
         setModelLoadStatus('loading');
         // Preload lightweight face-api for robust instant edge fallback
         await faceapi.nets.tinyFaceDetector.loadFromUri('/models').catch(() => {});
+        // Also preload SSD MobileNet for full-body person detection fallback
+        await faceapi.nets.ssdMobilenetv1.loadFromUri('/models').catch(() => {});
         if (isMounted) {
           setModelsReady(true);
           setModelLoadStatus('yolo_live');
@@ -256,10 +260,23 @@ export function LiveWebcamCCTV({
     setSelectedDeviceId(''); // clear exact device id to allow facingMode switch
   };
 
+  // Track remote frame loading state for reliable detection
   useEffect(() => {
     if (isRemoteActive && remoteFrameUrl) {
       setStreamActive(true);
       setResolution('1280x720 (Mobile)');
+      // Mark image as loading when URL changes
+      if (lastRemoteUrlRef.current !== remoteFrameUrl) {
+        lastRemoteUrlRef.current = remoteFrameUrl;
+        remoteImgLoadedRef.current = false;
+        // The img onload handler will set it to true
+        if (remoteImgRef.current) {
+          const img = remoteImgRef.current;
+          if (img.complete && img.naturalWidth > 0) {
+            remoteImgLoadedRef.current = true;
+          }
+        }
+      }
     }
   }, [isRemoteActive, remoteFrameUrl]);
 
@@ -370,13 +387,19 @@ export function LiveWebcamCCTV({
           ctx.fillText(clusterLabel, minX + 5, Math.max(12, minY - 5));
         }
 
-        // Trigger decoupled background AI detection every 220ms (4.5 inferences/sec)
+        // Trigger decoupled background AI detection (adaptive rate)
+        // Remote frames: 350ms interval (more time for image loading)
+        // Local video: 220ms interval (4.5 inferences/sec)
         // CRITICAL: This NEVER awaits or blocks the 60 FPS video renderLoop!
-        if (now - lastDetectTime >= 220 && !isDetectingRef.current && modelsReady) {
+        const detectInterval = isRemoteActive ? 350 : 220;
+        if (now - lastDetectTime >= detectInterval && !isDetectingRef.current && modelsReady) {
           lastDetectTime = now;
 
+          // For remote frames, skip detection if image isn't loaded yet
+          // but do NOT return — continue the render loop
           if (isRemoteActive && (!remoteImgRef.current || !remoteImgRef.current.complete || remoteImgRef.current.naturalWidth === 0)) {
-            return;
+            animId = requestAnimationFrame(renderLoop);
+            return; // Skip this detection cycle but keep rendering
           }
 
           isDetectingRef.current = true;
@@ -400,7 +423,13 @@ export function LiveWebcamCCTV({
               offscreen.height = targetH;
               const octx = offscreen.getContext('2d');
               if (!octx) return;
-              octx.drawImage(sourceElement, 0, 0, targetW, targetH);
+              try {
+                octx.drawImage(sourceElement, 0, 0, targetW, targetH);
+              } catch (drawErr) {
+                // Image may not be fully decoded yet (tainted canvas, etc)
+                console.warn('Frame capture skipped:', drawErr);
+                return;
+              }
 
               const blob = await new Promise<Blob | null>((resolve) =>
                 offscreen.toBlob(resolve, 'image/jpeg', 0.8)
@@ -439,8 +468,9 @@ export function LiveWebcamCCTV({
 
               if (data && Array.isArray(data.detections)) {
                 // ── Real YOLOv11 Detections ──
-                const scaleX = canvas.width / (sourceWidth || 1);
-                const scaleY = canvas.height / (sourceHeight || 1);
+                // Scale from ML server coordinates (based on 640xH input) to canvas display size
+                const scaleX = canvas.width / (targetW || 1);
+                const scaleY = canvas.height / (targetH || 1);
 
                 const personDets = data.detections.filter(
                   (d: any) => String(d.class_name).toLowerCase() === 'person'
@@ -499,27 +529,55 @@ export function LiveWebcamCCTV({
                   );
                 }
               } else {
-                // ── Secondary Edge Fallback: Face-API real detection (ZERO fake vehicles) ──
+                // ── Secondary Edge Fallback: Face-API + SSD MobileNet for person detection ──
                 try {
-                  const faces = await faceapi.detectAllFaces(
-                    sourceElement,
-                    new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.35 })
-                  );
-                  const scaleX = canvas.width / (sourceWidth || 1);
-                  const scaleY = canvas.height / (sourceHeight || 1);
-                  const gatheringActive = faces.length >= 2;
+                  // Use the offscreen canvas for detection (avoids cross-origin issues with blob URLs)
+                  const detectionSource = offscreen;
 
-                  const newTargets: DetectionTarget[] = faces.map((f, i) => {
+                  // Try face detection with lower threshold for mobile cameras
+                  const faces = await faceapi.detectAllFaces(
+                    detectionSource,
+                    new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.2 })
+                  );
+
+                  // Also try SSD MobileNet for full-body detection (catches people facing away)
+                  let ssdFaces: faceapi.FaceDetection[] = [];
+                  try {
+                    ssdFaces = await faceapi.detectAllFaces(
+                      detectionSource,
+                      new faceapi.SsdMobilenetv1Options({ minConfidence: 0.25 })
+                    );
+                  } catch {}
+
+                  // Merge both detection sets, removing duplicates by proximity
+                  const allDetections = [...faces];
+                  for (const ssd of ssdFaces) {
+                    const isDuplicate = allDetections.some((existing) => {
+                      const dx = Math.abs(existing.box.x - ssd.box.x);
+                      const dy = Math.abs(existing.box.y - ssd.box.y);
+                      return dx < ssd.box.width * 0.5 && dy < ssd.box.height * 0.5;
+                    });
+                    if (!isDuplicate) {
+                      allDetections.push(ssd);
+                    }
+                  }
+
+                  // Scale from offscreen canvas (640xH) to display canvas
+                  const fScaleX = canvas.width / (offscreen.width || 1);
+                  const fScaleY = canvas.height / (offscreen.height || 1);
+                  const gatheringActive = allDetections.length >= 2;
+
+                  const newTargets: DetectionTarget[] = allDetections.map((f, i) => {
                     trackCounterRef.current++;
                     const { x, y, width, height } = f.box;
                     return {
                       id: `TGT-${String(i + 1).padStart(2, '0')}`,
                       label: gatheringActive ? 'GATHERING • PERSON' : 'PERSON',
                       className: 'person',
-                      x: x * scaleX,
-                      y: y * scaleY,
-                      w: width * scaleX,
-                      h: height * scaleY,
+                      x: x * fScaleX,
+                      y: y * fScaleY,
+                      w: width * fScaleX,
+                      h: height * fScaleY,
                       conf: f.score,
                       threatScore: gatheringActive ? 85 : 65,
                       trackId: trackCounterRef.current,
@@ -529,7 +587,7 @@ export function LiveWebcamCCTV({
 
                   cachedTargetsRef.current = newTargets;
                   setDetectedTargetsCount(newTargets.length);
-                  setPersonCount(faces.length);
+                  setPersonCount(allDetections.length);
                   setVehicleCount(0); // Zero fake cars!
                   setIsGathering(gatheringActive);
                   setModelLoadStatus('faceapi_ready');
@@ -573,6 +631,13 @@ export function LiveWebcamCCTV({
           src={remoteFrameUrl}
           alt="Live Remote Mobile CCTV Stream"
           className="absolute inset-0 h-full w-full object-cover"
+          crossOrigin="anonymous"
+          onLoad={() => {
+            remoteImgLoadedRef.current = true;
+          }}
+          onError={() => {
+            remoteImgLoadedRef.current = false;
+          }}
         />
       ) : (
         <video
