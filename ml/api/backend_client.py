@@ -13,10 +13,23 @@ logger = logging.getLogger(__name__)
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:4000")
 AI_API_KEY = os.getenv("AI_API_KEY", "ibvap-ai-dev-key-change-in-production")
 
+EVIDENCE_EVENT_TYPES = frozenset({"INTRUSION", "FACE_MATCH", "ANPR_MATCH"})
+
+
+def event_requires_evidence(event: dict[str, Any]) -> bool:
+	"""Report whether an event should keep a frame snapshot as evidence."""
+	event_type = str(event.get("event_type") or event.get("eventType") or "").upper()
+	object_type = str(event.get("object_type") or event.get("objectType") or "").upper()
+	return (
+		event_type in EVIDENCE_EVENT_TYPES
+		or object_type == "PLATE"
+		or str(event.get("severity") or "").upper() == "CRITICAL"
+	)
+
 
 def _normalize_event(
 	event: dict[str, Any], camera_id: str, bop_id: str | None, timestamp: str,
-	evidence_snapshot: str | None = None,
+	evidence_snapshot: str | None = None, frame_number: int | None = None,
 ) -> dict[str, Any]:
 	"""Map ML event format to the IBVAP backend contract."""
 	bbox = event.get("bounding_box") or event.get("bbox")
@@ -34,6 +47,8 @@ def _normalize_event(
 		"confidence": float(event.get("confidence") or 0.5),
 		"zone": str(zone),
 	}
+	if event.get("event_id"):
+		payload["eventId"] = str(event["event_id"])
 	if bop_id:
 		payload["bopId"] = bop_id
 	if event.get("track_id") is not None:
@@ -42,9 +57,11 @@ def _normalize_event(
 		payload["bbox"] = [float(v) for v in bbox]
 	if event.get("metadata"):
 		payload["metadata"] = event["metadata"]
-	potentially_critical = payload["eventType"] in {"INTRUSION", "FACE_MATCH", "ANPR_MATCH"} or event.get("severity") == "CRITICAL"
-	if evidence_snapshot and potentially_critical:
-		payload["evidence"] = {"contentBase64": evidence_snapshot, "mimeType": "image/jpeg"}
+	if evidence_snapshot and event_requires_evidence(event):
+		evidence: dict[str, Any] = {"contentBase64": evidence_snapshot, "mimeType": "image/jpeg"}
+		if isinstance(frame_number, int) and not isinstance(frame_number, bool) and frame_number >= 0:
+			evidence["frameNumber"] = frame_number
+		payload["evidence"] = evidence
 	return payload
 
 
@@ -54,6 +71,7 @@ def forward_events(
 	bop_id: str | None = None,
 	timestamp: str | None = None,
 	evidence_snapshot: str | None = None,
+	frame_number: int | None = None,
 ) -> list[dict[str, Any]]:
 	"""POST each detection event to POST /api/ai/events."""
 	if not events:
@@ -65,7 +83,7 @@ def forward_events(
 
 	with httpx.Client(timeout=10.0) as client:
 		for raw in events:
-			payload = _normalize_event(raw, camera_id, bop_id, ts or raw.get("timestamp", ""), evidence_snapshot)
+			payload = _normalize_event(raw, camera_id, bop_id, ts or raw.get("timestamp", ""), evidence_snapshot, frame_number)
 			try:
 				response = client.post(f"{BACKEND_URL.rstrip('/')}/api/ai/events", json=payload, headers=headers)
 				response.raise_for_status()

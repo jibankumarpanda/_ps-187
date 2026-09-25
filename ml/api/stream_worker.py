@@ -12,9 +12,11 @@ from typing import Any, Callable
 import cv2
 
 try:
-    from ml.src.intrusion import VirtualFence
+	from ml.api.backend_client import event_requires_evidence
+	from ml.src.intrusion import VirtualFence
 except ModuleNotFoundError:
-    from src.intrusion import VirtualFence
+	from api.backend_client import event_requires_evidence
+	from src.intrusion import VirtualFence
 
 
 logger = logging.getLogger(__name__)
@@ -108,7 +110,7 @@ class CameraStreamWorker:
             key = (
                 str(event.get("event_type", "PERSON_DETECTED")),
                 event.get("track_id"),
-                str(metadata.get("zone", "UNKNOWN")),
+                str(metadata.get("plate") or metadata.get("zone", "UNKNOWN")),
             )
             if now - self._last_events.get(key, 0.0) < self.config.event_cooldown_seconds:
                 continue
@@ -122,6 +124,25 @@ class CameraStreamWorker:
         if not encoded:
             return None
         return base64.b64encode(image.tobytes()).decode("ascii")
+
+    def _dispatch(self, frame: Any, events: list[dict[str, Any]], frame_number: int,
+                  timestamp: str) -> list[dict[str, Any]]:
+        """Forward one event batch, snapshotting the frame only when evidence is kept."""
+        snapshot: str | None = None
+        if any(event_requires_evidence(event) for event in events):
+            try:
+                snapshot = self._snapshot(frame)
+            except Exception as exc:
+                logger.warning("Could not snapshot frame %s for %s: %s", frame_number,
+                               self.config.camera_id, exc)
+        return self.forward_events(
+            events,
+            camera_id=self.config.camera_id,
+            bop_id=self.config.bop_id,
+            timestamp=timestamp,
+            evidence_snapshot=snapshot,
+            frame_number=frame_number,
+        )
 
     def _run(self) -> None:
         self._report("DEGRADED", "ACTIVE", 0, "Connecting to camera stream")
@@ -151,13 +172,7 @@ class CameraStreamWorker:
                                 result = self.pipeline.process_frame(frame, frame_number)
                                 events = self._new_events(result["events"])
                                 if events:
-                                    self.forward_events(
-                                        events,
-                                        camera_id=self.config.camera_id,
-                                        bop_id=self.config.bop_id,
-                                        timestamp=result["timestamp"],
-                                        evidence_snapshot=self._snapshot(frame),
-                                    )
+                                    self._dispatch(frame, events, frame_number, result["timestamp"])
                             except Exception as exc:
                                 logger.exception("Inference failed for %s: %s", self.config.camera_id, exc)
                                 self._report("DEGRADED", "ERROR", source_fps, "AI inference failed; continuing")

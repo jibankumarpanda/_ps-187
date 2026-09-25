@@ -232,6 +232,7 @@ model Event {
   zone        String
   severity    Severity
   threatScore Int
+  metadata    Json?
   status      String     @default("NEW")  // NEW, ACKNOWLEDGED, INVESTIGATING, RESOLVED
   direction   String?
   timestamp   DateTime

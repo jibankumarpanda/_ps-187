@@ -53,6 +53,7 @@ export class EventService {
     return {
       data: events.map((evt) => ({
         eventId: evt.eventCode,
+        sourceEventId: evt.id,
         cameraId: evt.camera.cameraCode,
         bopId: evt.bop.code,
         timestamp: evt.timestamp.toISOString(),
@@ -64,6 +65,7 @@ export class EventService {
         severity: evt.severity,
         threatScore: evt.threatScore,
         status: evt.status,
+        metadata: evt.metadata ?? undefined,
         direction: evt.direction,
       })),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
@@ -85,6 +87,7 @@ export class EventService {
 
     return {
       eventId: event.eventCode,
+      sourceEventId: event.id,
       cameraId: event.camera.cameraCode,
       bopId: event.bop.code,
       timestamp: event.timestamp.toISOString(),
@@ -96,6 +99,7 @@ export class EventService {
       severity: event.severity,
       threatScore: event.threatScore,
       status: event.status,
+      metadata: event.metadata ?? undefined,
       direction: event.direction,
       evidence: event.evidence,
       alerts: event.alerts,
