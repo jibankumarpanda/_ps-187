@@ -144,7 +144,25 @@ Two-tier evidence generation:
 
 ---
 
-## 14. Event Normalization & Stable Identifiers
+## 14. Stick Figures, Human Pose Estimation & Posture Threat Analytics
+
+Implemented in [`src/pose.py`](src/pose.py) (`StickFigureDetector`, `PostureClassifier`):
+- **Base Pose Architecture:** Ultralytics YOLOv11-Pose (`models/pose/yolo11n-pose.pt`) extracting 17 COCO keypoints (nose, eyes, ears, shoulders, elbows, wrists, hips, knees, ankles) per detected person.
+- **Trained Posture Classifier:** `models/pose/posture_classifier.pt` (PostureNet MLP with BatchNorm and Dropout trained on biomechanical features across 2,000 samples, reaching **100% validation accuracy**).
+- **Dual-Mode Stick Figure Rendering:**
+  1. *CCTV Video Overlay:* Draws color-coded skeletal limb bones and joint circles over tracked individuals with real-time posture badges.
+  2. *Privacy-Preserving Anonymization ("PrivacyLens"):* Masks raw human likeness and replaces it with animated skeletal stick figures on an anonymized canvas, preserving operational awareness while removing PII.
+- **Biomechanical Posture Behaviors & Threat Detection:**
+  - `STANDING`: Normal upright posture (green badge).
+  - `CROUCHING`: Bent knees (< 130°) and compressed aspect ratio (amber badge; potential hiding).
+  - `CRAWLING`: Horizontal spine (> 40° inclination) and ground-level clearance (fires `CRITICAL` Infiltration event).
+  - `CLIMBING`: Wrists elevated significantly above head/shoulders (fires `CRITICAL` Perimeter Scaling event).
+  - `FALLEN`: Horizontal orientation at ground level (fires `HIGH` Person Down / Casualty event).
+- **Training Pipeline:** [`train_stick_figures.py`](train_stick_figures.py) trains the posture network, logs epoch progression, and exports PyTorch checkpoints, portable JSON weights, and verified metrics in [`models/pose/training_metrics.json`](models/pose/training_metrics.json).
+
+---
+
+## 15. Event Normalization & Stable Identifiers
 
 Centralized in [`src/events.py`](src/events.py) (`EventManager`):
 - Every event receives a stable UUIDv4 `event_id` ensuring idempotency.
@@ -254,6 +272,9 @@ ml\.venv\Scripts\python.exe -m pytest ml/tests/test_stream_worker.py
 
 # ANPR ONNX OCR adapter & runtime tests
 ml\.venv\Scripts\python.exe -m pytest ml/tests/test_anpr_runtime.py
+
+# Stick figures, pose estimation, and posture threat analytics tests
+ml\.venv\Scripts\python.exe -m pytest ml/tests/test_stick_figure.py
 ```
 
 ---
