@@ -1,4 +1,4 @@
-model_path: yolo11n.pt
+model_path: runs/merged_det_yolo/weights/best.pt
 dataset_yaml: data/merged-detection/data.yaml
 camera_id: BOP12-CAM04
 bop_id: BOP-12
@@ -24,3 +24,19 @@ enabled_modules:
   face_recognition: true
   intrusion: true
   activity: true
+  pose: true
+anpr:
+  enabled: false
+  plate_detector_model: ml/models/anpr/plate_detector.pt
+  detector_confidence: 0.35
+  ocr:
+    engine: onnxruntime
+    model: ml/models/anpr/plate_ocr.onnx
+    confidence: 0.50
+pose:
+  enabled: true
+  model_path: ml/models/pose/yolo11n-pose.pt
+  classifier_path: ml/models/pose/posture_classifier.pt
+  confidence_threshold: 0.35
+  keypoint_threshold: 0.30
+  privacy_mode: false
