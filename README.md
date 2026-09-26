@@ -20,3 +20,4 @@ The system is composed of four main components:
 ## Documentation
 - [Startup Guide](./startup.md)
 - [Implementation Details](./implementation.md)
+deployed
