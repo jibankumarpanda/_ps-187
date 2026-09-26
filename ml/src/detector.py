@@ -62,7 +62,12 @@ class YOLODetector:
 
 		for index in range(len(boxes)):
 			class_id = int(boxes.cls[index].item())
-			class_name = str(names[class_id]).lower()
+			raw_name = str(names.get(class_id, class_id) if isinstance(names, dict) else names[class_id]).lower()
+			if raw_name in {"human", "pedestrian", "0"} or class_id == 0:
+				class_name = "person"
+			else:
+				class_name = raw_name
+
 			if self.class_filter:
 				if class_name not in self.class_filter:
 					continue

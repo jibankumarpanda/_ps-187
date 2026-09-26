@@ -4,7 +4,24 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const connection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+const connection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+  maxRetriesPerRequest: null,
+  enableReadyCheck: false,
+  retryStrategy(times) {
+    // Retry with backoff, max 15s
+    return Math.min(times * 1000, 15000);
+  },
+  lazyConnect: true,
+});
+
+connection.on('error', (err: any) => {
+  // Gracefully suppress unhandled ECONNREFUSED crash if local Redis is offline
+  if (err.code === 'ECONNREFUSED') {
+    // Only log occasionally or debug
+  } else {
+    console.warn('[Queue Redis Warning]:', err.message);
+  }
+});
 
 export const videoQueue = new Queue('videoAnalysisQueue', { connection });
 

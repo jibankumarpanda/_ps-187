@@ -22,7 +22,6 @@ import {
 } from 'lucide-react';
 import * as faceapi from 'face-api.js';
 
-// Detection target interface
 interface DetectionTarget {
   id: string;
   label: string;
@@ -36,6 +35,49 @@ interface DetectionTarget {
   trackId: number;
   color: string;
 }
+
+// 17-Keypoint COCO Human Pose and Stick Figure interfaces
+export interface KeypointData {
+  name: string;
+  x: number;
+  y: number;
+  confidence: number;
+  visible: boolean;
+}
+
+export interface StickFigureData {
+  person_id: number | null;
+  bbox: [number, number, number, number];
+  confidence: number;
+  keypoints: KeypointData[];
+  posture: string;
+  posture_confidence: number;
+}
+
+// 17 COCO Keypoint pairs for anatomical skeleton visualization
+const SKELETON_PAIRS: [number, number][] = [
+  // Head
+  [0, 1], [0, 2], [1, 3], [2, 4],
+  // Shoulders & Torso
+  [5, 6], [5, 11], [6, 12], [11, 12],
+  // Left arm
+  [5, 7], [7, 9],
+  // Right arm
+  [6, 8], [8, 10],
+  // Left leg
+  [11, 13], [13, 15],
+  // Right leg
+  [12, 14], [14, 16],
+];
+
+// Posture color codes for tactical threat awareness
+const POSTURE_COLORS: Record<string, string> = {
+  STANDING: '#39D98A',    // Green (Normal)
+  CROUCHING: '#F4C95D',   // Amber/Gold (Concealment / Suspicious)
+  CRAWLING: '#FF5C67',    // Red (Breach Infiltration)
+  CLIMBING: '#D946EF',    // Purple/Magenta (Perimeter Scaling)
+  FALLEN: '#FB923C',      // Orange (Guard Down / Distress)
+};
 
 interface LiveWebcamCCTVProps {
   cameraCode?: string;
@@ -94,6 +136,7 @@ export function LiveWebcamCCTV({
   const cocoModelRef = useRef<any>(null);
   const trackCounterRef = useRef(0);
   const cachedTargetsRef = useRef<DetectionTarget[]>([]);
+  const cachedStickFiguresRef = useRef<StickFigureData[]>([]);
   const isDetectingRef = useRef(false);
   const remoteImgLoadedRef = useRef(false);
   const lastRemoteUrlRef = useRef<string | null>(null);
@@ -104,6 +147,7 @@ export function LiveWebcamCCTV({
   const [availableDevices, setAvailableDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
   const [showOverlays, setShowOverlays] = useState(true);
+  const [showStickFigure, setShowStickFigure] = useState(true);
   const [fps, setFps] = useState<number>(30);
   const [resolution, setResolution] = useState('1920x1080');
   const [timeString, setTimeString] = useState('');
@@ -361,6 +405,16 @@ export function LiveWebcamCCTV({
           drawTacticalBoundingBox(ctx, t, hasIntrusion);
         });
 
+        // ── Real-Time Stick Figure Human Pose Estimation ──
+        if (showStickFigure) {
+          const stickFigures = cachedStickFiguresRef.current;
+          const scaleX = canvas.width / 640;
+          const scaleY = canvas.height / 360;
+          stickFigures.forEach((fig) => {
+            drawTacticalStickFigure(ctx, fig, scaleX, scaleY);
+          });
+        }
+
         // If gathering is active, draw a tactical grouping cluster boundary around all persons
         const personTargets = targets.filter((t) => t.className === 'person');
         if (personTargets.length >= 2) {
@@ -512,6 +566,9 @@ export function LiveWebcamCCTV({
                   });
 
                 cachedTargetsRef.current = newTargets;
+                if (data && Array.isArray(data.stick_figures)) {
+                  cachedStickFiguresRef.current = data.stick_figures;
+                }
                 setDetectedTargetsCount(newTargets.length);
                 setPersonCount(pCount);
                 setVehicleCount(vCount);
@@ -767,6 +824,19 @@ export function LiveWebcamCCTV({
             {showOverlays ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
           </button>
 
+          <button
+            onClick={() => setShowStickFigure(!showStickFigure)}
+            className={`p-1.5 border transition-colors flex items-center gap-1 text-[10px] font-mono font-bold ${
+              showStickFigure
+                ? 'bg-[#39D98A]/20 border-[#39D98A] text-[#39D98A]'
+                : 'bg-black/60 border-white/20 text-muted-foreground'
+            }`}
+            title="Toggle Real-Time Stick Figure / Pose Skeletal Overlay"
+          >
+            <span>🦴</span>
+            <span className="hidden sm:inline">STICK FIGURE</span>
+          </button>
+
           {onFullscreen && (
             <button
               onClick={onFullscreen}
@@ -973,4 +1043,89 @@ function hexToRgba(hex: string, alpha: number): string {
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// ──── HELPER: Draw Real-Time Tactical Stick Figure Skeleton ────
+function drawTacticalStickFigure(
+  ctx: CanvasRenderingContext2D,
+  fig: StickFigureData,
+  scaleX: number,
+  scaleY: number
+) {
+  const posture = fig.posture || 'STANDING';
+  const postureColor = POSTURE_COLORS[posture] || '#39D98A';
+  const kps = fig.keypoints;
+  if (!kps || kps.length < 17) return;
+
+  ctx.save();
+
+  // 1. Draw Skeletal Connecting Bones
+  ctx.strokeStyle = postureColor;
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.shadowColor = hexToRgba(postureColor, 0.6);
+  ctx.shadowBlur = 8;
+
+  for (const [i1, i2] of SKELETON_PAIRS) {
+    const kp1 = kps[i1];
+    const kp2 = kps[i2];
+    if (kp1 && kp2 && kp1.visible && kp2.visible) {
+      ctx.beginPath();
+      ctx.moveTo(kp1.x * scaleX, kp1.y * scaleY);
+      ctx.lineTo(kp2.x * scaleX, kp2.y * scaleY);
+      ctx.stroke();
+    }
+  }
+
+  // 2. Draw Anatomical Keypoint Joints
+  ctx.shadowBlur = 0;
+  for (const kp of kps) {
+    if (kp && kp.visible) {
+      const kx = kp.x * scaleX;
+      const ky = kp.y * scaleY;
+
+      // Outer joint
+      ctx.fillStyle = postureColor;
+      ctx.beginPath();
+      ctx.arc(kx, ky, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Inner white nucleus
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(kx, ky, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // 3. Head Skeleton Loop
+  const nose = kps[0];
+  if (nose && nose.visible) {
+    ctx.strokeStyle = postureColor;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(nose.x * scaleX, (nose.y * scaleY) - 10, 13, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // 4. Posture Classification HUD Badge above figure
+  const [bx1, by1] = fig.bbox;
+  const bannerX = Math.max(10, bx1 * scaleX);
+  const bannerY = Math.max(22, (by1 * scaleY) - 18);
+  const confPct = Math.round((fig.posture_confidence || fig.confidence || 0.9) * 100);
+  const postureText = `🦴 [${posture} • ${confPct}%]`;
+
+  ctx.font = 'bold 10px monospace';
+  const textW = ctx.measureText(postureText).width;
+  ctx.fillStyle = 'rgba(5, 8, 11, 0.9)';
+  ctx.fillRect(bannerX, bannerY - 14, textW + 12, 18);
+  ctx.strokeStyle = postureColor;
+  ctx.lineWidth = 1.2;
+  ctx.strokeRect(bannerX, bannerY - 14, textW + 12, 18);
+
+  ctx.fillStyle = postureColor;
+  ctx.fillText(postureText, bannerX + 6, bannerY - 1);
+
+  ctx.restore();
 }
