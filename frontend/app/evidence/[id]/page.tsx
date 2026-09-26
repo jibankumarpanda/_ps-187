@@ -113,7 +113,7 @@ export default function EvidenceVerificationPage({ params }: { params: { id: str
               Digest: {evidence.hash}
             </div>
             <div className="text-[10px] text-green-500 font-semibold bg-[#39D98A]/10 px-2.5 py-1 rounded border border-[#39D98A]/20">
-              AES-256 ENCRYPTED AT REST • ZERO THIRD-PARTY EXPOSURE
+              SHA-256 ENCRYPTED AT REST • ZERO THIRD-PARTY EXPOSURE
             </div>
           </div>
         </div>

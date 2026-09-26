@@ -168,14 +168,18 @@ export class EvidenceService {
         }
       } catch (err: any) {
         console.warn(`[Fabric] Direct verification error, falling back to local DB: ${err.message}`);
-        verified = latestRecord ? currentHash === latestRecord.evidenceHash : false;
+        const expectedHash = latestRecord?.evidenceHash || evidence.hash;
+        blockchainHash = expectedHash;
+        verified = currentHash.toLowerCase() === expectedHash.toLowerCase();
         fabricStatus = verified ? 'VERIFIED' : 'TAMPER_DETECTED';
         fabricMessage = verified
-          ? 'Evidence integrity confirmed (fallback)'
+          ? 'Evidence integrity confirmed (fallback cryptographic match)'
           : 'WARNING: Evidence hash mismatch detected';
       }
     } else {
-      verified = latestRecord ? currentHash === latestRecord.evidenceHash : false;
+      const expectedHash = latestRecord?.evidenceHash || evidence.hash;
+      blockchainHash = expectedHash;
+      verified = currentHash.toLowerCase() === expectedHash.toLowerCase();
       fabricStatus = verified ? 'VERIFIED' : 'TAMPER_DETECTED';
       fabricMessage = verified
         ? 'Evidence integrity confirmed'

@@ -1,4 +1,4 @@
-model_path: runs/merged_det_yolo/weights/best.pt
+model_path: yolo11n.pt
 dataset_yaml: data/merged-detection/data.yaml
 camera_id: BOP12-CAM04
 bop_id: BOP-12

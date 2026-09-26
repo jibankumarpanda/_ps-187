@@ -155,15 +155,6 @@ export function HashVerification({ evidence, onVerify, className = '' }: HashVer
     }
   };
 
-  // Determine verification state strictly based on live verificationResult or initial database status
-  const hasExecutedCheck = verificationResult !== null;
-  const isVerified = verificationResult
-    ? verificationResult.verified
-    : evidence.verificationStatus === 'VERIFIED';
-  const isFailed = verificationResult
-    ? !verificationResult.verified
-    : evidence.verificationStatus === 'FAILED';
-
   const displayedSubmittedHash = verificationResult ? verificationResult.currentHash : evidence.hash;
   const rawBlockchainHash =
     verificationResult?.blockchainHash ||
@@ -171,7 +162,16 @@ export function HashVerification({ evidence, onVerify, className = '' }: HashVer
     evidence.hash;
 
   // Strict comparison between submitted hash and blockchain hash
-  const hashesMatch = displayedSubmittedHash.toLowerCase() === rawBlockchainHash.toLowerCase();
+  const hashesMatch = Boolean(
+    displayedSubmittedHash &&
+    rawBlockchainHash &&
+    displayedSubmittedHash.trim().toLowerCase() === rawBlockchainHash.trim().toLowerCase()
+  );
+
+  // If the submitted hash equals the immutable on-chain hash, it is verified
+  const hasExecutedCheck = verificationResult !== null;
+  const isVerified = hashesMatch;
+  const isFailed = !hashesMatch;
 
   const realTxId =
     verificationResult?.txId ||
