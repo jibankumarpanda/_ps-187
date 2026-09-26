@@ -5,3 +5,4 @@ __pycache__/
 # Chaincode build artifacts
 chaincode/ibvap-evidence-chaincode/node_modules/
 chaincode/ibvap-evidence-chaincode/dist/
+/no
