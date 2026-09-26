@@ -17,6 +17,7 @@ This document outlines the procedures to start the various components of the IBV
    ```bash
    npm run prisma:generate
    npm run prisma:migrate
+   npm prisma db push
    ```
 6. Start the development server: `npm run dev`
 
