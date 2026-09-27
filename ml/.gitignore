@@ -2,6 +2,6 @@
 __pycache__/
 *.pyc
 
-# Large dataset payloads (regenerate or store outside git)
-data/_downloads/
-data/merged-detection/
+# Large dataset payloads and training data (prevent pushing to git)
+data/
+runs/
