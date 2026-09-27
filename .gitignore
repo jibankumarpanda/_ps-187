@@ -2,6 +2,13 @@
 __pycache__/
 *.pyc
 
+# Training data and dataset payloads
+ml/data/
+
+# Training run logs and intermediate artifacts
+runs/
+ml/runs/
+
 # Chaincode build artifacts
 chaincode/ibvap-evidence-chaincode/node_modules/
 chaincode/ibvap-evidence-chaincode/dist/
