@@ -196,13 +196,15 @@ export function TelemetrySidecar({
                   <div className="text-[10px] text-muted-foreground">{tgt.label}</div>
                 </div>
                 <span
-                  className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                    tgt.threat > 70
-                      ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                  className={`text-[9px] font-bold px-1.5 py-0.5 font-mono ${
+                    tgt.threat >= 90
+                      ? 'bg-red-500/25 text-red-400 border border-red-500/50 animate-pulse'
+                      : tgt.threat > 70
+                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
                       : 'bg-accent/20 text-accent border border-accent/30'
                   }`}
                 >
-                  {tgt.threat > 70 ? 'CRITICAL' : 'INFORMATIONAL'}
+                  {tgt.threat >= 90 ? '🚨 ZONE BREACH' : tgt.threat > 70 ? 'CRITICAL' : 'INFORMATIONAL'}
                 </span>
               </div>
             ))

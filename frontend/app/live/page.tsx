@@ -32,12 +32,17 @@ import {
   Shield,
   Zap,
   Battery,
-  AlertTriangle
+  AlertTriangle,
+  PenTool
 } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { VideoPlayer } from '@/components/cameras/VideoPlayer';
-import { LiveWebcamCCTV } from '@/components/cameras/LiveWebcamCCTV';
+import {
+  LiveWebcamCCTV,
+  PolygonPoint,
+  DEFAULT_CAMERA_POLYGON,
+} from '@/components/cameras/LiveWebcamCCTV';
 import { TelemetrySidecar } from '@/components/surveillance/TelemetrySidecar';
 import { useCameras } from '@/hooks/useCameras';
 import { useAlerts } from '@/hooks/useAlerts';
@@ -67,6 +72,50 @@ export interface HardwareWebcamSlot {
   active: boolean;
 }
 
+// Polygon presets for security zones
+const POLYGON_PRESETS = [
+  {
+    name: 'Perimeter Corridor',
+    points: [
+      { x: 15, y: 35 },
+      { x: 85, y: 35 },
+      { x: 90, y: 88 },
+      { x: 10, y: 88 },
+    ],
+    desc: 'Lower perimeter corridor monitored for suspicious crossings',
+  },
+  {
+    name: 'Central Road Gateway',
+    points: [
+      { x: 28, y: 25 },
+      { x: 72, y: 25 },
+      { x: 78, y: 82 },
+      { x: 22, y: 82 },
+    ],
+    desc: 'Center transit avenue monitored for vehicular & human intrusion',
+  },
+  {
+    name: 'Restricted Trench Buffer',
+    points: [
+      { x: 8, y: 50 },
+      { x: 92, y: 50 },
+      { x: 96, y: 92 },
+      { x: 4, y: 92 },
+    ],
+    desc: 'Zero-tolerance border fence proximity buffer line',
+  },
+  {
+    name: 'Tactical Flank Flank',
+    points: [
+      { x: 5, y: 20 },
+      { x: 55, y: 20 },
+      { x: 60, y: 90 },
+      { x: 5, y: 90 },
+    ],
+    desc: 'Lateral flank sector watching stealth infiltration paths',
+  },
+];
+
 export default function LiveSurveillancePage() {
   const { cameras, isLoading, refetch } = useCameras();
   const { alerts } = useAlerts();
@@ -91,6 +140,34 @@ export default function LiveSurveillancePage() {
 
   // ──── Additional USB Webcams ────
   const [extraWebcamSlots, setExtraWebcamSlots] = useState<HardwareWebcamSlot[]>([]);
+
+  // ──── Camera Polygon Mappings (Virtual Fences for Suspicious Activity) ────
+  const [cameraPolygons, setCameraPolygons] = useState<Record<string, PolygonPoint[]>>({
+    CAM_04: [
+      { x: 15, y: 35 },
+      { x: 85, y: 35 },
+      { x: 90, y: 88 },
+      { x: 10, y: 88 },
+    ],
+    CAM_MOB_01: [
+      { x: 20, y: 35 },
+      { x: 80, y: 35 },
+      { x: 85, y: 85 },
+      { x: 15, y: 85 },
+    ],
+    CAM_MOB_02: [
+      { x: 25, y: 30 },
+      { x: 75, y: 30 },
+      { x: 80, y: 80 },
+      { x: 20, y: 80 },
+    ],
+    CAM_MOB_03: [
+      { x: 15, y: 40 },
+      { x: 85, y: 40 },
+      { x: 90, y: 90 },
+      { x: 10, y: 90 },
+    ],
+  });
 
   // ──── Active Telemetry / Sidecar State ────
   const [showSidecar, setShowSidecar] = useState(true);
@@ -162,7 +239,6 @@ export default function LiveSurveillancePage() {
 
       ws.onopen = () => {
         if (isCancelled) return;
-        // Register this page as a multi-camera receiver
         ws.send(JSON.stringify({ type: 'register', role: 'receiver', multiCam: true }));
       };
 
@@ -363,9 +439,10 @@ export default function LiveSurveillancePage() {
   const handleAddHardwareWebcam = useCallback(
     (device: MediaDeviceInfo) => {
       const slotNum = extraWebcamSlots.length + 5;
+      const slotCode = `CAM_${String(slotNum).padStart(2, '0')}`;
       const newSlot: HardwareWebcamSlot = {
         id: `webcam-${Date.now()}`,
-        cameraCode: `CAM_${String(slotNum).padStart(2, '0')}`,
+        cameraCode: slotCode,
         name: device.label || `External USB Camera ${extraWebcamSlots.length + 1}`,
         location: `Stationary Outpost 0${extraWebcamSlots.length + 2}`,
         deviceId: device.deviceId,
@@ -377,7 +454,7 @@ export default function LiveSurveillancePage() {
 
       showToast({
         title: 'Hardware Webcam Connected',
-        message: `${newSlot.name} (${newSlot.cameraCode}) added to surveillance grid.`,
+        message: `${newSlot.name} (${newSlot.cameraCode}) added with polygon intrusion monitoring.`,
         type: 'success',
       });
     },
@@ -593,17 +670,17 @@ export default function LiveSurveillancePage() {
         </div>
       </div>
 
-      {/* ──── Tactical Multi-Camera Connection Modal ──── */}
+      {/* ──── Tactical Multi-Camera Connection & Polygon Mapping Modal ──── */}
       {showAddCameraModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-[#0C141D] border border-accent/40 w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fade-in">
+          <div className="bg-[#0C141D] border border-accent/40 w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
             {/* Modal Header */}
             <div className="bg-card border-b border-border p-4 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="w-2.5 h-2.5 bg-accent animate-pulse" />
                 <h3 className="text-sm font-bold font-mono text-white tracking-wider uppercase flex items-center gap-2">
                   <MonitorSmartphone className="w-4 h-4 text-accent" />
-                  Tactical Multi-Camera Operations • Live Sensor Dispatch
+                  Tactical Multi-Camera Operations • Sensor &amp; Polygon Setup
                 </h3>
               </div>
               <button
@@ -625,7 +702,7 @@ export default function LiveSurveillancePage() {
                 }`}
               >
                 <Smartphone className="w-4 h-4" />
-                <span>1. CONNECT MOBILE CAMERAS (PHONE / IPAD)</span>
+                <span>1. MOBILE CAMERAS + POLYGON</span>
                 {activeMobileList.length > 0 && (
                   <span className="bg-[#39D98A] text-black text-[9px] px-1.5 py-0.2 rounded-full font-bold ml-1">
                     {activeMobileList.length} LIVE
@@ -642,7 +719,7 @@ export default function LiveSurveillancePage() {
                 }`}
               >
                 <Laptop className="w-4 h-4" />
-                <span>2. LAPTOP & USB WEBCAMS</span>
+                <span>2. LAPTOP &amp; USB WEBCAMS</span>
                 {hardwareDevices.length > 0 && (
                   <span className="bg-[#37B9FF] text-black text-[9px] px-1.5 py-0.2 rounded-full font-bold ml-1">
                     {hardwareDevices.length} DETECTED
@@ -659,19 +736,19 @@ export default function LiveSurveillancePage() {
                 }`}
               >
                 <Radio className="w-4 h-4" />
-                <span>3. RTSP / IP BORDER CAMS</span>
+                <span>3. RTSP BORDER CAMS</span>
               </button>
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 overflow-y-auto space-y-6">
-              {/* ──── TAB 1: CONNECT MOBILE CAMERAS ──── */}
+            <div className="p-5 overflow-y-auto space-y-5">
+              {/* ──── TAB 1: CONNECT MOBILE CAMERAS + POLYGON MAPPING ──── */}
               {modalTab === 'mobile' && (
-                <div className="space-y-6">
+                <div className="space-y-5">
                   {/* Unit Selector Pills */}
                   <div>
                     <label className="text-xs font-mono font-bold text-gray-300 block mb-2">
-                      SELECT MOBILE FIELD NODE TO PAIR:
+                      SELECT MOBILE FIELD NODE TO PAIR &amp; MAP:
                     </label>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                       {[
@@ -711,39 +788,36 @@ export default function LiveSurveillancePage() {
                   </div>
 
                   {/* QR Code & Direct Pairing Card */}
-                  <div className="bg-[#080E14] border border-border p-5 flex flex-col md:flex-row items-center gap-6">
+                  <div className="bg-[#080E14] border border-border p-4 flex flex-col md:flex-row items-center gap-5">
                     {/* Left: QR Code */}
-                    <div className="bg-white p-3 shadow-lg shrink-0 flex flex-col items-center">
-                      {/* Real dynamic QR Code generated from pairing URL */}
+                    <div className="bg-white p-2.5 shadow-lg shrink-0 flex flex-col items-center">
                       <img
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(
                           activeMobileUrl
                         )}&bgcolor=ffffff&color=000000`}
                         alt="Scan QR code with phone camera"
-                        className="w-40 h-40"
+                        className="w-36 h-36"
                       />
-                      <span className="text-[9px] font-mono text-black font-bold mt-2 uppercase tracking-wider">
-                        SCAN TO STREAM AS {selectedMobileUnit}
+                      <span className="text-[8px] font-mono text-black font-bold mt-1.5 uppercase tracking-wider">
+                        PAIR AS {selectedMobileUnit}
                       </span>
                     </div>
 
                     {/* Right: Quick Instructions & Link */}
-                    <div className="flex-1 space-y-3.5">
+                    <div className="flex-1 space-y-2.5">
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="px-2 py-0.5 text-[9px] font-mono font-bold bg-green-500/20 text-green-400 border border-green-500/40 uppercase">
                             {tunnelUrl ? 'PUBLIC SECURE CLOUDFLARE SSL' : 'LOCAL WI-FI STREAM'}
                           </span>
-                          <span className="text-xs text-muted-foreground font-mono">Sub-50ms Edge Latency</span>
+                          <span className="text-xs text-muted-foreground font-mono">Zero-friction camera relay</span>
                         </div>
-                        <h4 className="text-sm font-bold text-white font-mono mt-1.5">
-                          Connect iPhone or Android Camera Instantly
+                        <h4 className="text-sm font-bold text-white font-mono mt-1">
+                          Scan with iPhone or Android Camera
                         </h4>
-                        <ol className="text-xs text-muted-foreground space-y-1 mt-2 list-decimal list-inside font-mono">
-                          <li>Open standard Camera app on your iPhone or Android phone.</li>
-                          <li>Point camera at the QR code and tap the link that appears.</li>
-                          <li>Allow camera permission. Live feed appears in surveillance grid!</li>
-                        </ol>
+                        <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                          Point phone camera at QR code, tap the notification, and allow camera. The live feed streams into the grid alongside your laptop webcam.
+                        </p>
                       </div>
 
                       {/* URL Box */}
@@ -759,75 +833,132 @@ export default function LiveSurveillancePage() {
                           className="px-2.5 py-1 text-xs font-mono bg-accent/20 hover:bg-accent/30 text-accent border border-accent/40 flex items-center gap-1.5 shrink-0"
                         >
                           {copiedLink ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
-                          <span>{copiedLink ? 'COPIED' : 'COPY LINK'}</span>
+                          <span>{copiedLink ? 'COPIED' : 'COPY'}</span>
                         </button>
                       </div>
 
-                      {/* Quick Simulator Launch Button */}
-                      <div className="flex items-center gap-3 pt-1">
+                      {/* Simulator Launch Button */}
+                      <div className="pt-0.5">
                         <a
                           href={activeMobileUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="px-3.5 py-1.5 bg-[#37B9FF]/20 hover:bg-[#37B9FF]/30 text-[#37B9FF] border border-[#37B9FF]/50 text-xs font-mono font-bold flex items-center gap-2 transition-colors"
+                          className="inline-flex px-3 py-1 bg-[#37B9FF]/20 hover:bg-[#37B9FF]/30 text-[#37B9FF] border border-[#37B9FF]/50 text-xs font-mono font-bold items-center gap-2 transition-colors"
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
-                          <span>LAUNCH TRANSMITTER IN NEW TAB (TEST ON MAC)</span>
+                          <span>LAUNCH TRANSMITTER IN NEW TAB (INSTANT MAC TEST)</span>
                         </a>
                       </div>
                     </div>
                   </div>
 
-                  {/* Connected Devices Live Telemetry Table */}
-                  <div>
-                    <h4 className="text-xs font-mono font-bold text-gray-300 uppercase mb-2 flex items-center gap-2">
-                      <Signal className="w-3.5 h-3.5 text-green-400" />
-                      Currently Connected Mobile Field Units ({activeMobileList.length})
-                    </h4>
-                    {activeMobileList.length === 0 ? (
-                      <div className="p-4 border border-dashed border-border bg-[#080E14] text-center text-xs font-mono text-muted-foreground">
-                        No mobile phones currently streaming. Scan the QR code above or tap the test transmitter button.
+                  {/* ──── SECTION: CONFIGURE POLYGON MAPPING & SUSPICIOUS INTRUSION ZONE ──── */}
+                  <div className="bg-[#080E14] border border-[#37B9FF]/40 p-4 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Shield className="w-4 h-4 text-accent" />
+                        <h4 className="text-xs font-mono font-bold text-white uppercase tracking-wider">
+                          Polygon Mapping &amp; Suspicious Activity Zone ({selectedMobileUnit})
+                        </h4>
                       </div>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {activeMobileList.map((node) => (
-                          <div
-                            key={node.id}
-                            className="p-3 bg-[#080E14] border border-[#39D98A]/40 flex items-center justify-between gap-3"
+                      <span className="text-[10px] font-mono text-green-400 bg-green-500/10 border border-green-500/30 px-2 py-0.5 font-bold flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-ping" />
+                        RAY-CASTING DETECTION ACTIVE
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] font-mono text-muted-foreground">
+                      Define the restricted polygon boundary for this camera. Any detected person, vehicle, or crawling/crouching movement entering this zone will automatically trigger <span className="text-red-400 font-bold">SUSPICIOUS ACTIVITY</span> alerts.
+                    </p>
+
+                    {/* Presets */}
+                    <div>
+                      <span className="text-[10px] font-mono text-gray-400 block mb-1.5 font-bold">
+                        SELECT POLYGON PRESET:
+                      </span>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {POLYGON_PRESETS.map((preset) => (
+                          <button
+                            key={preset.name}
+                            type="button"
+                            onClick={() => {
+                              setCameraPolygons((prev) => ({
+                                ...prev,
+                                [selectedMobileUnit]: preset.points,
+                              }));
+                              showToast({
+                                title: 'Polygon Preset Applied',
+                                message: `${preset.name} applied to ${selectedMobileUnit}.`,
+                                type: 'info',
+                              });
+                            }}
+                            className="p-2 text-left bg-[#05080B] hover:bg-accent/15 border border-border hover:border-accent text-gray-300 transition-all group"
                           >
-                            <div className="flex items-center gap-3">
-                              <Smartphone className="w-6 h-6 text-[#39D98A]" />
-                              <div>
-                                <div className="text-xs font-bold text-white font-mono flex items-center gap-1.5">
-                                  <span>{node.id}</span>
-                                  <span className="text-muted-foreground">•</span>
-                                  <span>{node.name}</span>
-                                </div>
-                                <div className="text-[10px] text-muted-foreground font-mono flex items-center gap-2 mt-0.5">
-                                  <span>🔋 {node.battery}%</span>
-                                  <span>•</span>
-                                  <span>{node.resolution}</span>
-                                  <span>•</span>
-                                  <span className="text-green-400">STREAMING LIVE</span>
-                                </div>
-                              </div>
+                            <div className="text-[10px] font-mono font-bold text-accent group-hover:text-white">
+                              {preset.name}
                             </div>
-                            <button
-                              onClick={() => removeMobileNode(node.id)}
-                              className="p-1 text-muted-foreground hover:text-red-400 transition-colors"
-                              title="Disconnect node"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
+                            <div className="text-[8px] font-mono text-muted-foreground truncate mt-0.5">
+                              {preset.points.length} vertices
+                            </div>
+                          </button>
                         ))}
                       </div>
-                    )}
+                    </div>
+
+                    {/* Mini SVG Preview of Polygon */}
+                    <div
+                      className="relative bg-[#05080B] border border-border p-2 overflow-hidden flex items-center justify-center"
+                      style={{ aspectRatio: '21/8' }}
+                    >
+                      <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#37B9FF_1px,transparent_1px)] [background-size:20px_20px]" />
+
+                      <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <polygon
+                          points={(cameraPolygons[selectedMobileUnit] || DEFAULT_CAMERA_POLYGON)
+                            .map((p) => `${p.x},${p.y}`)
+                            .join(' ')}
+                          fill="rgba(55, 185, 255, 0.16)"
+                          stroke="#37B9FF"
+                          strokeWidth="1.2"
+                          strokeDasharray="4,2"
+                        />
+                        {(cameraPolygons[selectedMobileUnit] || DEFAULT_CAMERA_POLYGON).map((p, i) => (
+                          <g key={i}>
+                            <circle cx={p.x} cy={p.y} r="2.2" fill="#37B9FF" stroke="#FFFFFF" strokeWidth="0.8" />
+                            <text
+                              x={p.x + 3}
+                              y={p.y - 2}
+                              fill="#FFFFFF"
+                              fontSize="3.5"
+                              fontFamily="monospace"
+                              fontWeight="bold"
+                            >
+                              P{i + 1}
+                            </text>
+                          </g>
+                        ))}
+                        <text
+                          x="50"
+                          y="52"
+                          fill="#37B9FF"
+                          fontSize="3.5"
+                          fontFamily="monospace"
+                          fontWeight="bold"
+                          textAnchor="middle"
+                        >
+                          🛡 RESTRICTED ZONE // {selectedMobileUnit}
+                        </text>
+                      </svg>
+
+                      <div className="absolute bottom-2 left-2 text-[9px] font-mono text-muted-foreground bg-black/75 px-2 py-0.5 border border-white/10">
+                        Boundary: {(cameraPolygons[selectedMobileUnit] || DEFAULT_CAMERA_POLYGON).length} points • Click &quot;POLYGON&quot; on the feed tile at any time to redraw
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* ──── TAB 2: LAPTOP & HARDWARE WEBCAMS ──── */}
+              {/* ──── TAB 2: LAPTOP & HARDWARE WEBCAMS + POLYGON ──── */}
               {modalTab === 'webcam' && (
                 <div className="space-y-4">
                   <div className="bg-[#080E14] border border-border p-4">
@@ -836,8 +967,43 @@ export default function LiveSurveillancePage() {
                       Physical Hardware Cameras on this Computer ({hardwareDevices.length})
                     </h4>
                     <p className="text-xs text-muted-foreground font-mono">
-                      Connect your built-in FaceTime HD camera, external USB webcams, or virtual cameras as independent live CCTV feeds.
+                      Connect your built-in FaceTime HD camera, external USB webcams, or virtual cameras with dedicated polygon security boundaries.
                     </p>
+                  </div>
+
+                  {/* Polygon preset selector for Laptop Webcam (CAM_04) */}
+                  <div className="bg-[#080E14] border border-[#37B9FF]/40 p-4 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Shield className="w-4 h-4 text-accent" />
+                        <span className="text-xs font-mono font-bold text-white">
+                          POLYGON RESTRICTED ZONE FOR PRIMARY LAPTOP WEBCAM (CAM_04)
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-mono text-accent">ACTIVE</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {POLYGON_PRESETS.map((preset) => (
+                        <button
+                          key={preset.name}
+                          type="button"
+                          onClick={() => {
+                            setCameraPolygons((prev) => ({
+                              ...prev,
+                              CAM_04: preset.points,
+                            }));
+                            showToast({
+                              title: 'Polygon Preset Applied',
+                              message: `${preset.name} applied to CAM_04.`,
+                              type: 'info',
+                            });
+                          }}
+                          className="px-2.5 py-1 text-[10px] font-mono bg-[#05080B] hover:bg-accent/20 border border-border hover:border-accent text-gray-200 transition-colors"
+                        >
+                          {preset.name}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -951,7 +1117,7 @@ export default function LiveSurveillancePage() {
                 onClick={() => setShowAddCameraModal(false)}
                 className="px-4 py-1.5 bg-accent text-[#071018] text-xs font-mono font-bold hover:bg-accent/90 transition-colors"
               >
-                DONE
+                APPLY &amp; RETURN TO GRID
               </button>
             </div>
           </div>
@@ -990,7 +1156,7 @@ export default function LiveSurveillancePage() {
             );
           })}
 
-          {/* 2. DEDICATED LAPTOP HARDWARE WEBCAM TILE (CAM_04) */}
+          {/* 2. DEDICATED LAPTOP HARDWARE WEBCAM TILE (CAM_04) WITH POLYGON MAPPING */}
           {isWebcamCCTVActive && (
             <div
               onClick={() => {
@@ -1006,6 +1172,10 @@ export default function LiveSurveillancePage() {
                 cameraName="Laptop Command Center Webcam"
                 location="Command Center HQ • Station 01"
                 preferredDeviceId={laptopDeviceId}
+                polygonPoints={cameraPolygons['CAM_04'] || DEFAULT_CAMERA_POLYGON}
+                onPolygonChange={(pts) =>
+                  setCameraPolygons((prev) => ({ ...prev, CAM_04: pts }))
+                }
                 onDeviceChange={(devId) => setLaptopDeviceId(devId)}
                 onTargetDetected={(targets) => {
                   if (activeCameraId === 'CAM_04') {
@@ -1017,7 +1187,7 @@ export default function LiveSurveillancePage() {
             </div>
           )}
 
-          {/* 3. 📱 CONNECTED MOBILE PHONE CAMERAS (OVER-THE-AIR WEBSOCKET) */}
+          {/* 3. 📱 CONNECTED MOBILE PHONE CAMERAS WITH POLYGON MAPPING */}
           {activeMobileList.map((node) => (
             <div
               key={node.id}
@@ -1037,6 +1207,10 @@ export default function LiveSurveillancePage() {
                 remoteFrameUrl={node.frameUrl}
                 remoteDeviceName={node.name}
                 batteryLevel={node.battery}
+                polygonPoints={cameraPolygons[node.id] || DEFAULT_CAMERA_POLYGON}
+                onPolygonChange={(pts) =>
+                  setCameraPolygons((prev) => ({ ...prev, [node.id]: pts }))
+                }
                 onClose={() => removeMobileNode(node.id)}
                 onTargetDetected={(targets) => {
                   if (activeCameraId === node.id) {
@@ -1048,7 +1222,7 @@ export default function LiveSurveillancePage() {
             </div>
           ))}
 
-          {/* 4. 📹 EXTRA HARDWARE USB WEBCAMS */}
+          {/* 4. 📹 EXTRA HARDWARE USB WEBCAMS WITH POLYGON MAPPING */}
           {extraWebcamSlots
             .filter((slot) => slot.active)
             .map((slot) => (
@@ -1067,6 +1241,10 @@ export default function LiveSurveillancePage() {
                   cameraName={slot.name}
                   location={slot.location}
                   preferredDeviceId={slot.deviceId}
+                  polygonPoints={cameraPolygons[slot.cameraCode] || DEFAULT_CAMERA_POLYGON}
+                  onPolygonChange={(pts) =>
+                    setCameraPolygons((prev) => ({ ...prev, [slot.cameraCode]: pts }))
+                  }
                   onClose={() => removeExtraWebcam(slot.id)}
                   onTargetDetected={(targets) => {
                     if (activeCameraId === slot.cameraCode) {
@@ -1096,7 +1274,7 @@ export default function LiveSurveillancePage() {
                 CHANNEL {camerasToDisplay.length + totalCustomLiveCount + i + 1} — NO SIGNAL
               </span>
               <span className="text-[10px] font-mono text-accent/70 mt-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 font-bold">
-                <Plus className="w-3.5 h-3.5" /> Click to connect phone or webcam
+                <Plus className="w-3.5 h-3.5" /> Click to connect phone or webcam + map zone
               </span>
             </div>
           ))}
@@ -1139,6 +1317,10 @@ export default function LiveSurveillancePage() {
           <span className="text-[#37B9FF] flex items-center gap-1.5">
             <Smartphone className="w-3 h-3" />
             MOBILE CAMERAS: {activeMobileList.length} CONNECTED
+          </span>
+          <span className="text-[#F4C95D] flex items-center gap-1.5">
+            <Shield className="w-3 h-3" />
+            VIRTUAL FENCE: ACTIVE ON ALL CHANNELS
           </span>
           <span>
             CHANNELS: {camerasToDisplay.length + totalCustomLiveCount}/{densityCount}

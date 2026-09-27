@@ -19,9 +19,39 @@ import {
   User,
   Car,
   Users,
-  X
+  X,
+  Shield,
+  PenTool,
+  AlertTriangle
 } from 'lucide-react';
 import * as faceapi from 'face-api.js';
+
+export interface PolygonPoint {
+  x: number; // 0 to 100 percentage
+  y: number; // 0 to 100 percentage
+}
+
+export const DEFAULT_CAMERA_POLYGON: PolygonPoint[] = [
+  { x: 15, y: 35 },
+  { x: 85, y: 35 },
+  { x: 90, y: 88 },
+  { x: 10, y: 88 },
+];
+
+export function isPointInPolygon(px: number, py: number, polygon: PolygonPoint[]): boolean {
+  if (!polygon || polygon.length < 3) return false;
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].x;
+    const yi = polygon[i].y;
+    const xj = polygon[j].x;
+    const yj = polygon[j].y;
+    const intersect = ((yi > py) !== (yj > py)) &&
+      (px < ((xj - xi) * (py - yi)) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
 
 interface DetectionTarget {
   id: string;
@@ -96,6 +126,9 @@ interface LiveWebcamCCTVProps {
   preferredDeviceId?: string;
   onDeviceChange?: (deviceId: string) => void;
   onClose?: () => void;
+  polygonPoints?: PolygonPoint[];
+  onPolygonChange?: (points: PolygonPoint[]) => void;
+  showPolygon?: boolean;
 }
 
 // COCO-SSD class definitions for person & vehicle detection
@@ -138,6 +171,9 @@ export function LiveWebcamCCTV({
   preferredDeviceId,
   onDeviceChange,
   onClose,
+  polygonPoints,
+  onPolygonChange,
+  showPolygon = true,
 }: LiveWebcamCCTVProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const remoteImgRef = useRef<HTMLImageElement | null>(null);
@@ -157,6 +193,39 @@ export function LiveWebcamCCTV({
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>(preferredDeviceId || '');
   const [showOverlays, setShowOverlays] = useState(true);
   const [showStickFigure, setShowStickFigure] = useState(true);
+
+  // ──── Polygon Mapping & Restricted Zone State ────
+  const [activePolygon, setActivePolygon] = useState<PolygonPoint[]>(polygonPoints || DEFAULT_CAMERA_POLYGON);
+  const activePolygonRef = useRef<PolygonPoint[]>(polygonPoints || DEFAULT_CAMERA_POLYGON);
+  const [isEditingPolygon, setIsEditingPolygon] = useState(false);
+  const [showPolygonZone, setShowPolygonZone] = useState(showPolygon);
+  const [polygonIntrusionsCount, setPolygonIntrusionsCount] = useState(0);
+
+  // Sync activePolygonRef and state when polygonPoints prop changes
+  useEffect(() => {
+    if (polygonPoints && polygonPoints.length >= 3) {
+      setActivePolygon(polygonPoints);
+      activePolygonRef.current = polygonPoints;
+    }
+  }, [polygonPoints]);
+
+  useEffect(() => {
+    activePolygonRef.current = activePolygon;
+  }, [activePolygon]);
+
+  // Click handler to plot / edit polygon vertices on the video feed
+  const handlePolygonCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isEditingPolygon) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
+    const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
+
+    if (activePolygon.length >= 8) return;
+    const next = [...activePolygon, { x, y }];
+    setActivePolygon(next);
+    activePolygonRef.current = next;
+    if (onPolygonChange) onPolygonChange(next);
+  };
   const [fps, setFps] = useState<number>(30);
   const [resolution, setResolution] = useState('1920x1080');
   const [timeString, setTimeString] = useState('');
@@ -420,13 +489,62 @@ export function LiveWebcamCCTV({
 
         // Draw cached detection targets instantly with ZERO frame delay
         const targets = cachedTargetsRef.current;
+        const stickFigures = cachedStickFiguresRef.current;
+
+        // ── Point-in-Polygon Intrusion Detection for Suspicious Activity ──
+        let intrudingCount = 0;
+        const currentPolygon = activePolygonRef.current;
+        if (showPolygonZone && currentPolygon && currentPolygon.length >= 3) {
+          targets.forEach((t) => {
+            // Target foot/base ground position in percentage coordinates
+            const footX = ((t.x + t.w / 2) / canvas.width) * 100;
+            const footY = ((t.y + t.h * 0.92) / canvas.height) * 100;
+
+            const inside = isPointInPolygon(footX, footY, currentPolygon);
+            if (inside) {
+              intrudingCount++;
+              t.threatScore = 99;
+              t.color = '#FF5C67'; // Alert Red
+
+              // Check if person has suspicious breach postures (crouching, crawling, climbing)
+              const matchingFig = stickFigures.find(
+                (f) => f.bbox && Math.abs(f.bbox[0] - t.x) < 50
+              );
+              const posture = matchingFig?.posture;
+              if (
+                posture &&
+                ['CROUCHING', 'CRAWLING', 'CLIMBING', 'FALLEN'].includes(posture)
+              ) {
+                t.label = `🚨 SUSPICIOUS: ${posture} IN ZONE`;
+              } else if (t.className === 'person') {
+                t.label = `🚨 RESTRICTED ZONE INTRUSION`;
+              } else {
+                t.label = `🚨 UNAUTHORIZED VEHICLE IN ZONE`;
+              }
+            }
+          });
+        }
+        setPolygonIntrusionsCount(intrudingCount);
+
+        // Draw Polygon Restricted Zone onto Canvas
+        if (showPolygonZone && currentPolygon && currentPolygon.length >= 3) {
+          drawTacticalPolygonZone(
+            ctx,
+            canvas,
+            currentPolygon,
+            intrudingCount > 0,
+            intrudingCount,
+            isEditingPolygon
+          );
+        }
+
+        // Draw bounding boxes (highlighted red if in intrusion state)
         targets.forEach((t) => {
-          drawTacticalBoundingBox(ctx, t, hasIntrusion);
+          drawTacticalBoundingBox(ctx, t, hasIntrusion || intrudingCount > 0);
         });
 
         // ── Real-Time Stick Figure Human Pose Estimation ──
         if (showStickFigure) {
-          const stickFigures = cachedStickFiguresRef.current;
           const scaleX = canvas.width / 640;
           const scaleY = canvas.height / 360;
           stickFigures.forEach((fig) => {
@@ -728,7 +846,10 @@ export function LiveWebcamCCTV({
       {/* Real-time AI HUD Overlay Canvas */}
       <canvas
         ref={canvasRef}
-        className="absolute inset-0 h-full w-full pointer-events-none z-20"
+        onClick={handlePolygonCanvasClick}
+        className={`absolute inset-0 h-full w-full z-20 ${
+          isEditingPolygon ? 'cursor-crosshair pointer-events-auto' : 'pointer-events-none'
+        }`}
       />
 
       {/* Stream Error or Loading Placeholder */}
@@ -894,6 +1015,35 @@ export function LiveWebcamCCTV({
             <span className="hidden sm:inline">STICK FIGURE</span>
           </button>
 
+          {/* Restricted Polygon Zone Toggle */}
+          <button
+            onClick={() => setShowPolygonZone(!showPolygonZone)}
+            className={`p-1.5 border transition-colors flex items-center gap-1 text-[10px] font-mono font-bold ${
+              showPolygonZone
+                ? polygonIntrusionsCount > 0
+                  ? 'bg-red-500/30 border-red-500 text-red-400 animate-pulse'
+                  : 'bg-[#37B9FF]/20 border-[#37B9FF] text-[#37B9FF]'
+                : 'bg-black/60 border-white/20 text-muted-foreground'
+            }`}
+            title="Toggle Restricted Polygon Mapping / Virtual Fence"
+          >
+            <Shield className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">POLYGON</span>
+          </button>
+
+          {/* Edit Polygon Button */}
+          <button
+            onClick={() => setIsEditingPolygon(!isEditingPolygon)}
+            className={`p-1.5 border transition-colors flex items-center gap-1 text-[10px] font-mono font-bold ${
+              isEditingPolygon
+                ? 'bg-[#F4C95D]/30 border-[#F4C95D] text-[#F4C95D]'
+                : 'bg-black/60 border-white/20 text-muted-foreground hover:text-white'
+            }`}
+            title="Edit Polygon Boundary Coordinates (Click video to plot)"
+          >
+            <PenTool className="w-3.5 h-3.5" />
+          </button>
+
           {onFullscreen && (
             <button
               onClick={onFullscreen}
@@ -915,6 +1065,90 @@ export function LiveWebcamCCTV({
           )}
         </div>
       </div>
+
+      {/* ──── Tactical Polygon Intrusion Alert Banner ──── */}
+      {showPolygonZone && polygonIntrusionsCount > 0 && (
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-30 px-3.5 py-1.5 bg-red-950/90 border border-red-500 text-red-200 backdrop-blur-md flex items-center gap-2 shadow-xl shadow-red-500/40 animate-pulse pointer-events-none">
+          <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+          <span className="text-[11px] font-mono font-bold tracking-wider uppercase">
+            🚨 SUSPICIOUS ACTIVITY IN POLYGON ZONE ({polygonIntrusionsCount} TARGET{polygonIntrusionsCount > 1 ? 'S' : ''})
+          </span>
+        </div>
+      )}
+
+      {/* ──── Interactive Polygon Editing Toolbar ──── */}
+      {isEditingPolygon && (
+        <div className="absolute top-12 left-3 right-3 z-30 bg-[#0C141D]/95 border border-[#F4C95D] p-2.5 flex flex-wrap items-center justify-between gap-2 shadow-2xl backdrop-blur-md animate-fade-in pointer-events-auto">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#F4C95D] animate-ping" />
+            <span className="text-[10px] font-mono font-bold text-[#F4C95D] uppercase">
+              CLICK VIDEO TO ADD VERTICES ({activePolygon.length}/8 PTS)
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              onClick={() => {
+                const pts = [
+                  { x: 15, y: 35 },
+                  { x: 85, y: 35 },
+                  { x: 90, y: 88 },
+                  { x: 10, y: 88 },
+                ];
+                setActivePolygon(pts);
+                activePolygonRef.current = pts;
+                if (onPolygonChange) onPolygonChange(pts);
+              }}
+              className="px-2 py-0.5 text-[9px] font-mono bg-white/10 hover:bg-white/20 text-white border border-white/20"
+            >
+              Corridor
+            </button>
+            <button
+              onClick={() => {
+                const pts = [
+                  { x: 28, y: 25 },
+                  { x: 72, y: 25 },
+                  { x: 78, y: 82 },
+                  { x: 22, y: 82 },
+                ];
+                setActivePolygon(pts);
+                activePolygonRef.current = pts;
+                if (onPolygonChange) onPolygonChange(pts);
+              }}
+              className="px-2 py-0.5 text-[9px] font-mono bg-white/10 hover:bg-white/20 text-white border border-white/20"
+            >
+              Gateway
+            </button>
+            <button
+              onClick={() => {
+                setActivePolygon([]);
+                activePolygonRef.current = [];
+              }}
+              className="px-2 py-0.5 text-[9px] font-mono bg-red-600/20 hover:bg-red-600/40 text-red-300 border border-red-500/40"
+            >
+              Clear
+            </button>
+            <button
+              onClick={() => {
+                if (activePolygon.length < 3) {
+                  const fallback = [
+                    { x: 15, y: 35 },
+                    { x: 85, y: 35 },
+                    { x: 90, y: 88 },
+                    { x: 10, y: 88 },
+                  ];
+                  setActivePolygon(fallback);
+                  activePolygonRef.current = fallback;
+                  if (onPolygonChange) onPolygonChange(fallback);
+                }
+                setIsEditingPolygon(false);
+              }}
+              className="px-2.5 py-0.5 text-[9px] font-mono bg-[#39D98A] text-[#071018] font-bold hover:bg-[#39D98A]/90"
+            >
+              Save Zone & Exit
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Tactical Gathering Alert Banner */}
       {isGathering && personCount >= 2 && (
@@ -953,6 +1187,19 @@ export function LiveWebcamCCTV({
           {vehicleCount > 0 && (
             <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-[#37B9FF]/15 text-[#37B9FF] border border-[#37B9FF]/30 hidden sm:flex items-center gap-1">
               {vehicleCount} VEHICLE{vehicleCount > 1 ? 'S' : ''}
+            </span>
+          )}
+          {/* Zone Intrusion status */}
+          {showPolygonZone && (
+            <span
+              className={`text-[9px] font-mono font-bold px-1.5 py-0.5 border flex items-center gap-1 ${
+                polygonIntrusionsCount > 0
+                  ? 'bg-red-500/30 text-red-300 border-red-500/50 animate-pulse'
+                  : 'bg-[#37B9FF]/15 text-[#37B9FF] border-[#37B9FF]/30'
+              }`}
+            >
+              <Shield className="w-2.5 h-2.5" />
+              ZONE: {polygonIntrusionsCount > 0 ? `🚨 ${polygonIntrusionsCount} INTRUSION` : '🟢 SECURE'}
             </span>
           )}
         </div>
@@ -1193,6 +1440,102 @@ function drawTacticalStickFigure(
 
   ctx.fillStyle = postureColor;
   ctx.fillText(postureText, bannerX + 6, bannerY - 1);
+
+  ctx.restore();
+}
+
+// ──── HELPER: Draw Tactical Restricted Polygon Zone ────
+function drawTacticalPolygonZone(
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  polygon: PolygonPoint[],
+  isIntruded: boolean,
+  intrudingCount: number,
+  isEditing: boolean
+) {
+  if (polygon.length < 3) return;
+
+  const pts = polygon.map((p) => ({
+    x: (p.x / 100) * canvas.width,
+    y: (p.y / 100) * canvas.height,
+  }));
+
+  ctx.save();
+
+  // Polygon path
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) {
+    ctx.lineTo(pts[i].x, pts[i].y);
+  }
+  ctx.closePath();
+
+  // Fill and stroke styling
+  if (isIntruded) {
+    ctx.fillStyle = 'rgba(255, 92, 103, 0.25)';
+    ctx.strokeStyle = '#FF5C67';
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([]);
+    ctx.shadowColor = 'rgba(255, 92, 103, 0.6)';
+    ctx.shadowBlur = 14;
+  } else if (isEditing) {
+    ctx.fillStyle = 'rgba(244, 201, 93, 0.15)';
+    ctx.strokeStyle = '#F4C95D';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.shadowColor = 'rgba(244, 201, 93, 0.5)';
+    ctx.shadowBlur = 8;
+  } else {
+    ctx.fillStyle = 'rgba(55, 185, 255, 0.10)';
+    ctx.strokeStyle = '#37B9FF';
+    ctx.lineWidth = 1.8;
+    ctx.setLineDash([6, 4]);
+    ctx.shadowColor = 'rgba(55, 185, 255, 0.4)';
+    ctx.shadowBlur = 8;
+  }
+
+  ctx.fill();
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.shadowBlur = 0;
+
+  // Draw vertices P1, P2...
+  pts.forEach((pt, i) => {
+    ctx.fillStyle = isIntruded ? '#FF5C67' : isEditing ? '#F4C95D' : '#37B9FF';
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, isEditing ? 5 : 3.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    ctx.font = 'bold 9px monospace';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(`P${i + 1}`, pt.x + 5, pt.y - 4);
+  });
+
+  // Center/Top Zone Label
+  const topPt = pts.reduce((prev, curr) => (curr.y < prev.y ? curr : prev), pts[0]);
+  const zoneTag = isIntruded
+    ? `🚨 [BREACH DETECTED: ${intrudingCount} TARGETS IN RESTRICTED ZONE]`
+    : isEditing
+    ? `[EDITING POLYGON BOUNDARY: ${polygon.length} VERTICES]`
+    : `[🛡 RESTRICTED ZONE // ACTIVE]`;
+
+  ctx.font = 'bold 10px monospace';
+  const tagW = ctx.measureText(zoneTag).width;
+  const labelX = Math.max(8, Math.min(canvas.width - tagW - 16, topPt.x - tagW / 2));
+  const labelY = Math.max(22, topPt.y - 8);
+
+  ctx.fillStyle = isIntruded ? '#FF5C67' : isEditing ? '#F4C95D' : 'rgba(12, 20, 29, 0.85)';
+  ctx.fillRect(labelX - 4, labelY - 12, tagW + 8, 16);
+
+  ctx.strokeStyle = isIntruded ? '#FFFFFF' : isEditing ? '#000000' : '#37B9FF';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(labelX - 4, labelY - 12, tagW + 8, 16);
+
+  ctx.fillStyle = isIntruded ? '#FFFFFF' : isEditing ? '#071018' : '#37B9FF';
+  ctx.fillText(zoneTag, labelX, labelY);
 
   ctx.restore();
 }
