@@ -18,7 +18,7 @@ const handle = app.getRequestHandler();
 let activeTunnelUrl = '';
 let activeMobileDevice = null;
 const receivers = new Set();
-const senders = new Set();
+const senders = new Map(); // ws -> deviceInfo
 
 function getLocalIPs() {
   const interfaces = os.networkInterfaces();
@@ -153,8 +153,10 @@ app.prepare().then(() => {
               : `http://${primaryLocalIP}:${port}/cameras/mobile/stream`,
             localStreamUrl: `http://${primaryLocalIP}:${port}/cameras/mobile/stream`,
             localIP: primaryLocalIP,
-            activeDevice: activeMobileDevice,
+            activeDevice: senders.size > 0 ? Array.from(senders.values())[0] : null,
+            activeDevices: Array.from(senders.values()),
             hasActivePhone: senders.size > 0,
+            deviceCount: senders.size,
           })
         );
         return;
@@ -210,11 +212,25 @@ app.prepare().then(() => {
     ws.on('message', (message, isBinary) => {
       // Binary frame from mobile camera -> relay to all desktop receivers
       if (isBinary) {
+        const senderInfo = senders.get(ws);
+        const senderId = ws.senderId || (senderInfo ? senderInfo.id : 'CAM_MOB_01');
+        const idBuf = Buffer.from(senderId, 'utf8');
+        
+        // Frame format for multiCam receivers: [1 byte: idLength][idLength bytes: senderId UTF-8][JPEG Payload]
+        const header = Buffer.alloc(1 + idBuf.length);
+        header.writeUInt8(idBuf.length, 0);
+        idBuf.copy(header, 1);
+        const taggedMessage = Buffer.concat([header, message]);
+
         for (const receiver of receivers) {
           if (receiver.readyState === WebSocket.OPEN) {
             // Drop frame if receiver is backed up to eliminate latency lag
             if (receiver.bufferedAmount > 0) continue;
-            receiver.send(message, { binary: true });
+            if (receiver.isMultiCam) {
+              receiver.send(taggedMessage, { binary: true });
+            } else {
+              receiver.send(message, { binary: true });
+            }
           }
         }
         return;
@@ -228,9 +244,13 @@ app.prepare().then(() => {
           clientRole = data.role; // 'sender' (phone) or 'receiver' (laptop)
 
           if (clientRole === 'sender') {
-            senders.add(ws);
-            activeMobileDevice = {
-              name: data.device?.name || 'Mobile Phone',
+            const rawId = data.deviceId || data.device?.id;
+            const assignedId = rawId || `CAM_MOB_${String(senders.size + 1).padStart(2, '0')}`;
+            ws.senderId = assignedId;
+
+            const deviceInfo = {
+              id: assignedId,
+              name: data.device?.name || `Mobile Unit ${senders.size + 1}`,
               type: data.device?.type || 'iphone',
               battery: data.device?.battery ?? 100,
               resolution: data.device?.resolution || '1280x720',
@@ -238,41 +258,56 @@ app.prepare().then(() => {
               connectedAt: new Date().toISOString(),
             };
 
-            console.log(`[Stream] 📱 Mobile Camera Connected: ${activeMobileDevice.name}`);
+            senders.set(ws, deviceInfo);
+            activeMobileDevice = deviceInfo;
 
-            // Broadcast to all desktop receivers that mobile is connected
+            console.log(`[Stream] 📱 Mobile Camera Connected: ${deviceInfo.name} (${deviceInfo.id}) [Total: ${senders.size}]`);
+
+            // Broadcast to all desktop receivers that a mobile camera connected
             const alertMsg = JSON.stringify({
               type: 'mobile_connected',
-              device: activeMobileDevice,
+              deviceId: assignedId,
+              device: deviceInfo,
+              devices: Array.from(senders.values()),
             });
             for (const r of receivers) {
               if (r.readyState === WebSocket.OPEN) r.send(alertMsg);
             }
           } else if (clientRole === 'receiver') {
+            ws.isMultiCam = !!data.multiCam;
             receivers.add(ws);
-            // Inform receiver if mobile is already streaming
+            // Inform receiver about current mobile streams
             ws.send(
               JSON.stringify({
                 type: 'status',
                 hasMobileSender: senders.size > 0,
-                device: activeMobileDevice,
+                devices: Array.from(senders.values()),
+                device: senders.size > 0 ? Array.from(senders.values())[0] : null,
               })
             );
           }
         } else if (data.type === 'telemetry') {
           // Update device battery / resolution / status
-          if (activeMobileDevice) {
-            Object.assign(activeMobileDevice, data.device);
-          }
-          // Forward telemetry to receivers
-          for (const r of receivers) {
-            if (r.readyState === WebSocket.OPEN) {
-              r.send(JSON.stringify({ type: 'telemetry', device: activeMobileDevice }));
+          const dev = senders.get(ws);
+          if (dev) {
+            if (data.device) {
+              Object.assign(dev, data.device);
+            }
+            const telMsg = JSON.stringify({
+              type: 'telemetry',
+              deviceId: dev.id,
+              device: dev,
+              devices: Array.from(senders.values()),
+            });
+            for (const r of receivers) {
+              if (r.readyState === WebSocket.OPEN) {
+                r.send(telMsg);
+              }
             }
           }
         } else if (data.type === 'signal') {
           // WebRTC signaling relay between phone and laptop
-          const targets = clientRole === 'sender' ? receivers : senders;
+          const targets = clientRole === 'sender' ? receivers : senders.keys();
           for (const target of targets) {
             if (target.readyState === WebSocket.OPEN) {
               target.send(JSON.stringify({ type: 'signal', data: data.data }));
@@ -286,11 +321,17 @@ app.prepare().then(() => {
 
     ws.on('close', () => {
       if (clientRole === 'sender') {
+        const removed = senders.get(ws);
         senders.delete(ws);
-        if (senders.size === 0) {
-          activeMobileDevice = null;
-          console.log('[Stream] 📱 Mobile Camera Disconnected');
-          const disconnectMsg = JSON.stringify({ type: 'mobile_disconnected' });
+        activeMobileDevice = senders.size > 0 ? Array.from(senders.values())[0] : null;
+
+        if (removed) {
+          console.log(`[Stream] 📱 Mobile Camera Disconnected: ${removed.name} (${removed.id}) [Remaining: ${senders.size}]`);
+          const disconnectMsg = JSON.stringify({
+            type: 'mobile_disconnected',
+            deviceId: removed.id,
+            devices: Array.from(senders.values()),
+          });
           for (const r of receivers) {
             if (r.readyState === WebSocket.OPEN) r.send(disconnectMsg);
           }

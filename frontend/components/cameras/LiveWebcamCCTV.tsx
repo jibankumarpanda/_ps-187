@@ -18,7 +18,8 @@ import {
   Laptop,
   User,
   Car,
-  Users
+  Users,
+  X
 } from 'lucide-react';
 import * as faceapi from 'face-api.js';
 
@@ -91,6 +92,10 @@ interface LiveWebcamCCTVProps {
   remoteFrameUrl?: string | null;
   remoteDeviceName?: string | null;
   isRemoteActive?: boolean;
+  batteryLevel?: number | null;
+  preferredDeviceId?: string;
+  onDeviceChange?: (deviceId: string) => void;
+  onClose?: () => void;
 }
 
 // COCO-SSD class definitions for person & vehicle detection
@@ -129,6 +134,10 @@ export function LiveWebcamCCTV({
   remoteFrameUrl = null,
   remoteDeviceName = null,
   isRemoteActive = false,
+  batteryLevel = null,
+  preferredDeviceId,
+  onDeviceChange,
+  onClose,
 }: LiveWebcamCCTVProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const remoteImgRef = useRef<HTMLImageElement | null>(null);
@@ -145,7 +154,7 @@ export function LiveWebcamCCTV({
   const [streamError, setStreamError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>(defaultFacingMode);
   const [availableDevices, setAvailableDevices] = useState<MediaDeviceInfo[]>([]);
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>(preferredDeviceId || '');
   const [showOverlays, setShowOverlays] = useState(true);
   const [showStickFigure, setShowStickFigure] = useState(true);
   const [fps, setFps] = useState<number>(30);
@@ -212,8 +221,16 @@ export function LiveWebcamCCTV({
     return () => { isMounted = false; };
   }, []);
 
+  // Synchronize preferredDeviceId prop
+  useEffect(() => {
+    if (preferredDeviceId && preferredDeviceId !== selectedDeviceId) {
+      setSelectedDeviceId(preferredDeviceId);
+    }
+  }, [preferredDeviceId]);
+
   // Enumerate connected cameras (Front, Back, USB Webcams)
   useEffect(() => {
+    if (isRemoteActive) return;
     async function getDevices() {
       if (typeof navigator === 'undefined' || !navigator.mediaDevices?.enumerateDevices) return;
       try {
@@ -221,14 +238,15 @@ export function LiveWebcamCCTV({
         const videoDevices = devices.filter((d) => d.kind === 'videoinput');
         setAvailableDevices(videoDevices);
         if (videoDevices.length > 0 && !selectedDeviceId) {
-          setSelectedDeviceId(videoDevices[0].deviceId);
+          const chosen = preferredDeviceId || videoDevices[0].deviceId;
+          setSelectedDeviceId(chosen);
         }
       } catch (err) {
         console.warn('Device enumeration error:', err);
       }
     }
     getDevices();
-  }, [selectedDeviceId]);
+  }, [selectedDeviceId, preferredDeviceId, isRemoteActive]);
 
   // Start media stream
   const startCamera = useCallback(async () => {
@@ -288,6 +306,7 @@ export function LiveWebcamCCTV({
   }, [facingMode, selectedDeviceId]);
 
   useEffect(() => {
+    if (isRemoteActive) return;
     startCamera();
     return () => {
       if (videoRef.current && videoRef.current.srcObject) {
@@ -295,7 +314,7 @@ export function LiveWebcamCCTV({
         stream.getTracks().forEach((t) => t.stop());
       }
     };
-  }, [startCamera]);
+  }, [startCamera, isRemoteActive]);
 
   // Toggle between front (selfie/laptop) and rear (environment/mobile CCTV)
   const toggleFacingMode = () => {
@@ -801,8 +820,46 @@ export function LiveWebcamCCTV({
               : 'AI ACTIVE'}
           </span>
 
+          {/* Battery level for mobile nodes */}
+          {isRemoteActive && batteryLevel !== null && (
+            <span
+              className={`text-[10px] font-mono px-1.5 py-0.5 border flex items-center gap-1 font-bold ${
+                batteryLevel > 50
+                  ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                  : batteryLevel > 20
+                  ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                  : 'bg-red-500/20 text-red-400 border-red-500/30 animate-pulse'
+              }`}
+            >
+              🔋 {batteryLevel}%
+            </span>
+          )}
+
+          {/* Local hardware camera switcher */}
+          {!isRemoteActive && availableDevices.length > 1 && (
+            <div className="hidden sm:flex items-center bg-black/60 border border-white/20 px-1.5 py-0.5">
+              <Laptop className="w-3 h-3 text-accent mr-1 shrink-0" />
+              <select
+                value={selectedDeviceId}
+                onChange={(e) => {
+                  const devId = e.target.value;
+                  setSelectedDeviceId(devId);
+                  if (onDeviceChange) onDeviceChange(devId);
+                }}
+                className="bg-transparent text-[10px] font-mono text-cyan-300 outline-none cursor-pointer max-w-[120px] truncate"
+                title="Select Camera Sensor"
+              >
+                {availableDevices.map((d, i) => (
+                  <option key={d.deviceId || i} value={d.deviceId} className="bg-[#0C141D] text-white">
+                    {d.label || `Camera ${i + 1}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Device switch buttons */}
-          {availableDevices.length > 1 && (
+          {availableDevices.length > 1 && !isRemoteActive && (
             <button
               onClick={toggleFacingMode}
               className="p-1.5 bg-black/60 hover:bg-black/90 border border-white/20 text-white transition-colors"
@@ -844,6 +901,16 @@ export function LiveWebcamCCTV({
               title="Fullscreen"
             >
               <Maximize2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-1.5 bg-red-600/20 hover:bg-red-600/80 border border-red-500/40 text-red-300 hover:text-white transition-colors"
+              title="Close camera feed"
+            >
+              <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>

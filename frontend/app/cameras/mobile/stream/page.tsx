@@ -35,7 +35,31 @@ export default function MobileStreamPage() {
   const [torchOn, setTorchOn] = useState(false);
   const [hasTorch, setHasTorch] = useState(false);
   const [speedMode, setSpeedMode] = useState<'ultra' | 'balanced' | 'hd'>('ultra');
+  const [unitId, setUnitId] = useState<string>('CAM_MOB_01');
+  const [unitName, setUnitName] = useState<string>('Mobile Patrol Alpha');
   const isEncodingRef = useRef(false);
+
+  // Initialize Unit ID and Name from URL or storage
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const qId = params.get('camId');
+    const qName = params.get('name');
+    let savedId = '';
+    try {
+      savedId = localStorage.getItem('ibvap_mobile_cam_id') || '';
+    } catch {}
+
+    const resolvedId = qId || savedId || 'CAM_MOB_01';
+    setUnitId(resolvedId);
+    if (qName) {
+      setUnitName(qName);
+    } else if (resolvedId === 'CAM_MOB_02') {
+      setUnitName('Mobile Recon Bravo');
+    } else if (resolvedId === 'CAM_MOB_03') {
+      setUnitName('Perimeter Mobile Charlie');
+    }
+  }, []);
 
   // Military UTC clock
   useEffect(() => {
@@ -177,22 +201,24 @@ export default function MobileStreamPage() {
 
         // Detect device name
         const ua = navigator.userAgent;
-        let deviceName = 'Mobile Device';
         let deviceType: 'iphone' | 'android' = 'android';
+        let deviceName = unitName;
         if (/iPhone/i.test(ua)) {
-          deviceName = 'iPhone CCTV Node';
           deviceType = 'iphone';
+          if (!deviceName.toLowerCase().includes('iphone')) deviceName = `iPhone - ${unitName}`;
         } else if (/Android/i.test(ua)) {
-          deviceName = 'Android CCTV Node';
           deviceType = 'android';
+          if (!deviceName.toLowerCase().includes('android')) deviceName = `Android - ${unitName}`;
         }
 
-        // Register as camera sender
+        // Register as camera sender with explicit unit ID
         ws.send(
           JSON.stringify({
             type: 'register',
             role: 'sender',
+            deviceId: unitId,
             device: {
+              id: unitId,
               name: deviceName,
               type: deviceType,
               battery: batteryLevel ?? 95,
@@ -278,7 +304,7 @@ export default function MobileStreamPage() {
       if (frameIntervalRef.current) clearInterval(frameIntervalRef.current);
       if (ws) ws.close();
     };
-  }, [streamActive, resolution, facingMode, batteryLevel, speedMode]);
+  }, [streamActive, resolution, facingMode, batteryLevel, speedMode, unitId, unitName]);
 
   // Flip Camera
   const switchCamera = () => {
@@ -378,11 +404,41 @@ export default function MobileStreamPage() {
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
             <span className="text-[11px] font-mono font-bold text-white uppercase tracking-wider">
-              TRANSMITTING TO COMMAND
+              {unitId}
+            </span>
+            <span className="text-[10px] font-mono text-accent hidden sm:inline">
+              // {unitName}
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            {/* Unit ID Selector */}
+            <div className="bg-black/60 border border-accent/40 px-1.5 py-0.5 flex items-center gap-1">
+              <span className="text-[9px] font-mono text-muted-foreground uppercase">NODE:</span>
+              <select
+                value={unitId}
+                onChange={(e) => {
+                  const newId = e.target.value;
+                  setUnitId(newId);
+                  const newName =
+                    newId === 'CAM_MOB_01'
+                      ? 'Mobile Patrol Alpha'
+                      : newId === 'CAM_MOB_02'
+                      ? 'Mobile Recon Bravo'
+                      : 'Perimeter Mobile Charlie';
+                  setUnitName(newName);
+                  try {
+                    localStorage.setItem('ibvap_mobile_cam_id', newId);
+                  } catch {}
+                  if (wsRef.current) wsRef.current.close();
+                }}
+                className="bg-transparent text-[10px] font-mono text-accent font-bold outline-none cursor-pointer"
+              >
+                <option value="CAM_MOB_01" className="bg-[#0C141D] text-white">Unit 1 (CAM_MOB_01)</option>
+                <option value="CAM_MOB_02" className="bg-[#0C141D] text-white">Unit 2 (CAM_MOB_02)</option>
+                <option value="CAM_MOB_03" className="bg-[#0C141D] text-white">Unit 3 (CAM_MOB_03)</option>
+              </select>
+            </div>
             {batteryLevel !== null && (
               <span className="text-[10px] font-mono bg-black/60 px-2 py-0.5 border border-white/10 text-green-400">
                 {batteryLevel}%
