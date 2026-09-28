@@ -26,24 +26,28 @@ class ObjectTracker:
 		if not results:
 			return []
 		result = results[0]
-		vehicle_classes = {"car", "truck", "bus", "motorcycle", "bicycle"}
-		surveillance_classes = {"person", "car", "truck", "bus", "motorcycle", "bicycle"}
+		vehicle_classes = {"car", "truck", "bus", "motorcycle", "bicycle", "van", "automobile", "vehicle", "motorbike"}
+		surveillance_classes = {"person", *vehicle_classes}
 
 		if result.boxes is None or len(result.boxes) == 0:
 			return []
+
+		min_vehicle_conf = min(self.detector.confidence_threshold, 0.25)
 
 		if result.boxes.id is None:
 			output = []
 			for index in range(len(result.boxes)):
 				class_id = int(result.boxes.cls[index].item())
 				class_name = str(result.names[class_id]).lower()
+				if class_name in {"automobile", "auto"}:
+					class_name = "car"
 				if self.detector.class_filter:
 					if class_name not in self.detector.class_filter:
 						continue
 				elif class_name not in surveillance_classes:
 					continue
 				conf = float(result.boxes.conf[index].item())
-				if class_name in vehicle_classes and conf < 0.55:
+				if class_name in vehicle_classes and conf < min_vehicle_conf:
 					continue
 				bbox = [float(value) for value in result.boxes.xyxy[index].tolist()]
 				output.append({
@@ -62,13 +66,15 @@ class ObjectTracker:
 		for index, track_id in enumerate(result.boxes.id.int().tolist()):
 			class_id = int(result.boxes.cls[index].item())
 			class_name = str(result.names[class_id]).lower()
+			if class_name in {"automobile", "auto"}:
+				class_name = "car"
 			if self.detector.class_filter:
 				if class_name not in self.detector.class_filter:
 					continue
 			elif class_name not in surveillance_classes:
 				continue
 			conf = float(result.boxes.conf[index].item())
-			if class_name in vehicle_classes and conf < 0.55:
+			if class_name in vehicle_classes and conf < min_vehicle_conf:
 				continue
 			bbox = [float(value) for value in result.boxes.xyxy[index].tolist()]
 			output.append({

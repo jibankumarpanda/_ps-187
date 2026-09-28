@@ -20,11 +20,12 @@ restricted_zones: {}
 enabled_modules:
   tracking: true
   anpr: false
-  face: true
-  face_recognition: true
+  face: false
+  face_recognition: false
   intrusion: true
   activity: true
-  pose: true
+  pose: false
+
 anpr:
   enabled: false
   plate_detector_model: ml/models/anpr/plate_detector.pt

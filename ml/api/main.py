@@ -51,7 +51,17 @@ ROOT = Path(__file__).resolve().parents[1]
 with (ROOT / "config.yaml").open(encoding="utf-8") as config_file:
 	CONFIG = yaml.safe_load(config_file) or {}
 
-device = select_device(CONFIG.get("device"))
+# Limit PyTorch CPU thread pool and autograd to minimize memory footprint on low-RAM cloud instances (Render free tier)
+try:
+	import torch
+	torch.set_num_threads(1)
+	if hasattr(torch, "set_grad_enabled"):
+		torch.set_grad_enabled(False)
+except ImportError:
+	pass
+
+preferred_device = os.getenv("DEVICE", CONFIG.get("device", "cpu"))
+device = select_device(preferred_device)
 model_path_str = os.getenv("MODEL_PATH", CONFIG.get("model_path", "runs/merged_det_yolo/weights/best.pt"))
 model_path = Path(model_path_str)
 if not model_path.is_absolute():
@@ -61,9 +71,7 @@ if not model_path.is_absolute():
 			break
 	else:
 		model_path = ROOT / model_path
-detector = YOLODetector(str(model_path), CONFIG["confidence_threshold"], device,
-						CONFIG.get("classes"))
-tracker = ObjectTracker(detector, CONFIG.get("tracker", "bytetrack.yaml"))
+
 fence = VirtualFence(CONFIG.get("restricted_zones", {}))
 activity = ActivityMonitor(
 	CONFIG["loitering_seconds"],
@@ -71,21 +79,64 @@ activity = ActivityMonitor(
 	gathering_threshold=CONFIG.get("gathering_threshold", 2),
 )
 event_manager = EventManager(CONFIG.get("camera_id", "CAM_001"))
-face_detector = None
-if CONFIG.get("enabled_modules", {}).get("face", False):
-	try:
-		face_detector = FaceDetector(CONFIG.get("face_cascade_path"))
-	except (FileNotFoundError, cv2.error):
-		face_detector = None
-face_recognizer = None
-if CONFIG.get("enabled_modules", {}).get("face_recognition", False):
-	face_recognizer = FaceRecognizer(
-		detector=face_detector,
-		gallery_dir=CONFIG.get("face_gallery_dir", "data/faces"),
-		model_path=CONFIG.get("face_model_path"),
-		threshold=CONFIG.get("face_recognition_threshold", 0.45),
-	)
 logger = logging.getLogger(__name__)
+
+_detector: YOLODetector | None = None
+_tracker: ObjectTracker | None = None
+_pipeline: VideoPipeline | None = None
+_face_detector: FaceDetector | None = None
+_face_recognizer: FaceRecognizer | None = None
+_anpr_pipeline: ANPRPipeline | None = None
+_pose_detector: StickFigureDetector | None = None
+
+
+def get_detector() -> YOLODetector:
+	global _detector
+	if _detector is None:
+		_detector = YOLODetector(
+			str(model_path),
+			CONFIG.get("confidence_threshold", 0.25),
+			device,
+			CONFIG.get("classes"),
+		)
+	return _detector
+
+
+def get_tracker() -> ObjectTracker:
+	global _tracker
+	if _tracker is None:
+		_tracker = ObjectTracker(get_detector(), CONFIG.get("tracker", "bytetrack.yaml"))
+	return _tracker
+
+
+def is_face_enabled(config: dict[str, Any]) -> bool:
+	return bool(config.get("enabled_modules", {}).get("face", False))
+
+
+def get_face_detector() -> FaceDetector | None:
+	global _face_detector
+	if _face_detector is None and is_face_enabled(CONFIG):
+		try:
+			_face_detector = FaceDetector(CONFIG.get("face_cascade_path"))
+		except (FileNotFoundError, cv2.error):
+			_face_detector = None
+	return _face_detector
+
+
+def get_face_recognizer() -> FaceRecognizer | None:
+	global _face_recognizer
+	if _face_recognizer is None and CONFIG.get("enabled_modules", {}).get("face_recognition", False):
+		try:
+			_face_recognizer = FaceRecognizer(
+				detector=get_face_detector(),
+				gallery_dir=CONFIG.get("face_gallery_dir", "data/faces"),
+				model_path=CONFIG.get("face_model_path"),
+				threshold=CONFIG.get("face_recognition_threshold", 0.45),
+			)
+		except Exception as exc:
+			logger.warning("Face recognizer could not be initialized: %s", exc)
+			_face_recognizer = None
+	return _face_recognizer
 
 
 def is_anpr_enabled(config: dict[str, Any]) -> bool:
@@ -112,6 +163,13 @@ def build_anpr_pipeline(config: dict[str, Any], device_name: str | None = None) 
 	except (FileNotFoundError, RuntimeError, ValueError) as exc:
 		logger.warning("ANPR pipeline could not be initialized: %s", exc)
 		return None
+
+
+def get_anpr_pipeline() -> ANPRPipeline | None:
+	global _anpr_pipeline
+	if _anpr_pipeline is None and is_anpr_enabled(CONFIG):
+		_anpr_pipeline = build_anpr_pipeline(CONFIG, device)
+	return _anpr_pipeline
 
 
 def is_pose_enabled(config: dict[str, Any]) -> bool:
@@ -152,20 +210,48 @@ def build_pose_detector(config: dict[str, Any], device_name: str | None = None) 
 		return None
 
 
-anpr_pipeline = build_anpr_pipeline(CONFIG, device)
-pose_detector = build_pose_detector(CONFIG, device)
-pipeline = VideoPipeline(
-	detector,
-	tracker,
-	fence,
-	activity,
-	face_detector,
-	CONFIG.get("camera_id", "CAM_001"),
-	CONFIG.get("process_every_n_frames", 1),
-	anpr_pipeline,
-	pose_estimator=pose_detector,
-	privacy_mode=CONFIG.get("pose", {}).get("privacy_mode", False),
-)
+def get_pose_detector() -> StickFigureDetector | None:
+	global _pose_detector
+	if _pose_detector is None and is_pose_enabled(CONFIG):
+		_pose_detector = build_pose_detector(CONFIG, device)
+	return _pose_detector
+
+
+def get_pipeline() -> VideoPipeline:
+	global _pipeline
+	if _pipeline is None:
+		_pipeline = VideoPipeline(
+			get_detector(),
+			get_tracker(),
+			fence,
+			activity,
+			get_face_detector(),
+			CONFIG.get("camera_id", "CAM_001"),
+			CONFIG.get("process_every_n_frames", 1),
+			get_anpr_pipeline(),
+			pose_estimator=get_pose_detector(),
+			privacy_mode=CONFIG.get("pose", {}).get("privacy_mode", False),
+		)
+	return _pipeline
+
+
+def __getattr__(name: str) -> Any:
+	if name == "detector":
+		return get_detector()
+	if name == "tracker":
+		return get_tracker()
+	if name == "pipeline":
+		return get_pipeline()
+	if name == "face_detector":
+		return get_face_detector()
+	if name == "face_recognizer":
+		return get_face_recognizer()
+	if name == "anpr_pipeline":
+		return get_anpr_pipeline()
+	if name == "pose_detector":
+		return get_pose_detector()
+	raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+
 app = FastAPI(title="IBVAP ML API", version="1.0.0")
 app.add_middleware(
 	CORSMiddleware,
@@ -202,7 +288,7 @@ class CameraTestRequest(BaseModel):
 
 def _build_stream_pipeline(camera_id: str) -> VideoPipeline:
 	"""Create isolated tracker and rule state for one long-running camera."""
-	stream_detector = YOLODetector(str(model_path), CONFIG["confidence_threshold"], device, CONFIG.get("classes"))
+	stream_detector = get_detector()
 	stream_tracker = ObjectTracker(stream_detector, CONFIG.get("tracker", "bytetrack.yaml"))
 	stream_anpr = build_anpr_pipeline(CONFIG, device)
 	stream_pose = build_pose_detector(CONFIG, device)
@@ -212,7 +298,7 @@ def _build_stream_pipeline(camera_id: str) -> VideoPipeline:
 		stream_tracker,
 		VirtualFence({}),
 		ActivityMonitor(CONFIG["loitering_seconds"], tuple(CONFIG["night_hours"])),
-		face_detector,
+		get_face_detector(),
 		camera_id,
 		CONFIG.get("process_every_n_frames", 1),
 		stream_anpr,
@@ -231,10 +317,17 @@ def root() -> dict[str, str]:
 
 @app.get("/health")
 def health() -> dict[str, Any]:
-	return {"status": "ok", "device": device, "model_loaded": detector.model_loaded,
-			"model_path": str(model_path), "face_available": face_detector is not None,
-			"anpr_available": pipeline.anpr is not None,
-			"enabled_modules": CONFIG.get("enabled_modules", {}), "active_streams": stream_manager.status()}
+	return {
+		"status": "ok",
+		"device": device,
+		"model_loaded": _detector is not None and getattr(_detector, "_model", None) is not None,
+		"model_path": str(model_path),
+		"face_available": is_face_enabled(CONFIG),
+		"anpr_available": is_anpr_enabled(CONFIG),
+		"pose_available": is_pose_enabled(CONFIG),
+		"enabled_modules": CONFIG.get("enabled_modules", {}),
+		"active_streams": stream_manager.status(),
+	}
 
 
 async def _decode_image(file: UploadFile) -> tuple[np.ndarray, bytes]:
@@ -249,28 +342,62 @@ async def _decode_image(file: UploadFile) -> tuple[np.ndarray, bytes]:
 
 async def _analyze_image(file: UploadFile, camera_id: str, bop_id: str | None = None) -> dict[str, Any]:
 	image, contents = await _decode_image(file)
+	pipe = get_pipeline()
+	current_face_detector = get_face_detector()
+	current_face_recognizer = get_face_recognizer()
 	try:
-		result = pipeline.process_frame(image, timestamp=datetime.now(timezone.utc).isoformat())
+		result = pipe.process_frame(image, timestamp=datetime.now(timezone.utc).isoformat())
 	except (RuntimeError, FileNotFoundError) as exc:
 		raise HTTPException(status_code=503, detail=str(exc)) from exc
-	if camera_id != pipeline.camera_id:
+	if camera_id != pipe.camera_id:
 		for event in result["events"]:
 			event["camera_id"] = camera_id
 	event_manager.events.extend(result["events"])
-	result["anpr_status"] = "available" if pipeline.anpr is not None else ("disabled" if not is_anpr_enabled(CONFIG) else "unavailable")
-	result["face_status"] = "available" if face_detector is not None else "disabled"
-	result["pose_status"] = "available" if pipeline.pose_estimator is not None else "disabled"
-	if face_recognizer is not None:
-		result["faces"] = face_recognizer.analyze(image)
-	if pipeline.pose_estimator and result.get("stick_figures"):
-		raw_figs = pipeline.pose_estimator.detect(image, result.get("tracks"))
-		annotated = pipeline.pose_estimator.draw(image, raw_figs, privacy_mode=pipeline.privacy_mode)
-		ret, buf = cv2.imencode(".jpg", annotated)
-		if ret:
-			result["annotated_frame_base64"] = base64.b64encode(buf.tobytes()).decode("ascii")
+	result["anpr_status"] = "available" if pipe.anpr is not None else ("disabled" if not is_anpr_enabled(CONFIG) else "unavailable")
+	result["face_status"] = "available" if current_face_detector is not None else "disabled"
+	result["pose_status"] = "available" if pipe.pose_estimator is not None else "disabled"
+	if current_face_recognizer is not None:
+		result["faces"] = current_face_recognizer.analyze(image)
+	if pipe.pose_estimator and result.get("stick_figures"):
+		# Stick figures are already detected in pipe.process_frame; draw using stick_figures
+		try:
+			raw_figs = pipe.pose_estimator.detect(image, result.get("tracks"))
+			annotated = pipe.pose_estimator.draw(image, raw_figs, privacy_mode=pipe.privacy_mode)
+			ret, buf = cv2.imencode(".jpg", annotated)
+			if ret:
+				result["annotated_frame_base64"] = base64.b64encode(buf.tobytes()).decode("ascii")
+		except Exception as draw_exc:
+			logger.warning("Annotated frame rendering skipped: %s", draw_exc)
 
 	person_detections = [d for d in result.get("detections", []) if str(d.get("class_name", "")).lower() == "person"]
 	result["person_count"] = len(person_detections)
+
+	vehicle_classes = {"car", "truck", "bus", "motorcycle", "bicycle", "van", "automobile", "vehicle", "motorbike"}
+	vehicle_detections = [
+		d for d in result.get("detections", [])
+		if str(d.get("class_name", "")).lower() in vehicle_classes
+	]
+	result["vehicle_count"] = len(vehicle_detections)
+
+	# Emit VEHICLE_DETECTED event for detected vehicles
+	for vd in vehicle_detections:
+		c_name = str(vd.get("class_name", "car")).upper()
+		track_id = int(vd.get("track_id") or vd.get("class_id") or 1)
+		v_event = {
+			"event_type": "VEHICLE_DETECTED",
+			"severity": "MEDIUM",
+			"track_id": track_id,
+			"object_type": "VEHICLE",
+			"confidence": float(vd.get("confidence", 0.5)),
+			"bbox": vd.get("bbox"),
+			"metadata": {
+				"vehicle_type": c_name,
+				"description": f"{c_name} detected in camera sector",
+				"alert": "VEHICLE_DETECTED"
+			}
+		}
+		result["events"].append(v_event)
+
 	gathering_active = any(e.get("event_type") == "GATHERING" for e in result.get("events", [])) or len(person_detections) >= CONFIG.get("gathering_threshold", 2)
 	result["is_gathering"] = gathering_active
 
@@ -299,12 +426,16 @@ async def _analyze_image(file: UploadFile, camera_id: str, bop_id: str | None = 
 		}
 		result["events"].append(gathering_event)
 
-	# Forward events to backend with evidence snapshot
+	result["frame_width"] = int(image.shape[1])
+	result["frame_height"] = int(image.shape[0])
+
+	# Forward events to backend with evidence snapshot in background thread
 	events_to_forward = result.get("events", [])
 	if events_to_forward:
 		try:
 			evidence_b64 = base64.b64encode(contents).decode("utf-8")
-			forward_results = forward_events(
+			forward_results = await asyncio.to_thread(
+				forward_events,
 				events_to_forward,
 				camera_id=camera_id,
 				bop_id=bop_id,
@@ -340,12 +471,13 @@ async def analyze_video(file: UploadFile = File(...), camera_id: str = "CAM_001"
 	if not file.filename:
 		raise HTTPException(status_code=400, detail="A video filename is required")
 	suffix = Path(file.filename).suffix or ".mp4"
+	pipe = get_pipeline()
 	with tempfile.TemporaryDirectory() as temporary_directory:
 		input_path = Path(temporary_directory) / f"input{suffix}"
 		output_path = Path(temporary_directory) / "annotated.mp4"
 		input_path.write_bytes(await file.read())
 		try:
-			result = pipeline.process_video(input_path, output_path)
+			result = pipe.process_video(input_path, output_path)
 		except (FileNotFoundError, RuntimeError, cv2.error) as exc:
 			raise HTTPException(status_code=503, detail=str(exc)) from exc
 		result.update({"camera_id": camera_id, "events": [], "message": "Annotated output was created during processing but is not persisted by this API."})
@@ -413,16 +545,17 @@ def stream_camera_live(camera_id: str):
 @app.post("/api/pose/analyze")
 async def analyze_pose(file: UploadFile = File(...), privacy_mode: bool = False) -> dict[str, Any]:
 	"""Extract stick figures, estimate human poses, and classify postures from an uploaded image."""
-	if pose_detector is None:
+	current_pose = get_pose_detector()
+	if current_pose is None:
 		raise HTTPException(status_code=503, detail="Stick Figure / Pose estimation module is not enabled or loaded.")
 	contents = await file.read()
 	nparr = np.frombuffer(contents, np.uint8)
 	frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 	if frame is None:
 		raise HTTPException(status_code=400, detail="Could not decode image.")
-	figures = pose_detector.detect(frame)
-	threat_events = pose_detector.evaluate_threats(figures)
-	annotated = pose_detector.draw(frame, figures, privacy_mode=privacy_mode)
+	figures = current_pose.detect(frame)
+	threat_events = current_pose.evaluate_threats(figures)
+	annotated = current_pose.draw(frame, figures, privacy_mode=privacy_mode)
 	_, buffer = cv2.imencode(".jpg", annotated)
 	encoded_image = base64.b64encode(buffer).decode("utf-8")
 	return {

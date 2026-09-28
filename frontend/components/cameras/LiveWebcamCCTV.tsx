@@ -22,7 +22,8 @@ import {
   X,
   Shield,
   PenTool,
-  AlertTriangle
+  AlertTriangle,
+  Trash2
 } from 'lucide-react';
 import * as faceapi from 'face-api.js';
 
@@ -133,7 +134,7 @@ interface LiveWebcamCCTVProps {
 
 // COCO-SSD class definitions for person & vehicle detection
 const PERSON_CLASSES = ['person'];
-const VEHICLE_CLASSES = ['car', 'truck', 'bus', 'motorcycle', 'bicycle'];
+const VEHICLE_CLASSES = ['car', 'truck', 'bus', 'motorcycle', 'motorbike', 'bicycle', 'van', 'automobile', 'vehicle'];
 const ALL_DETECT_CLASSES = [...PERSON_CLASSES, ...VEHICLE_CLASSES];
 
 // Color mapping
@@ -143,7 +144,11 @@ const CLASS_COLORS: Record<string, string> = {
   truck: '#F4C95D',       // Amber
   bus: '#A78BFA',         // Purple
   motorcycle: '#FB923C',  // Orange
+  motorbike: '#FB923C',   // Orange
   bicycle: '#34D399',     // Emerald
+  van: '#38BDF8',         // Sky blue
+  automobile: '#37B9FF',  // Cyan
+  vehicle: '#37B9FF',     // Cyan
 };
 
 const CLASS_LABELS: Record<string, string> = {
@@ -152,7 +157,11 @@ const CLASS_LABELS: Record<string, string> = {
   truck: 'VEHICLE / TRUCK',
   bus: 'VEHICLE / BUS',
   motorcycle: 'VEHICLE / MOTORCYCLE',
+  motorbike: 'VEHICLE / MOTORCYCLE',
   bicycle: 'VEHICLE / BICYCLE',
+  van: 'VEHICLE / VAN',
+  automobile: 'VEHICLE / CAR',
+  vehicle: 'VEHICLE',
 };
 
 export function LiveWebcamCCTV({
@@ -195,15 +204,15 @@ export function LiveWebcamCCTV({
   const [showStickFigure, setShowStickFigure] = useState(true);
 
   // ──── Polygon Mapping & Restricted Zone State ────
-  const [activePolygon, setActivePolygon] = useState<PolygonPoint[]>(polygonPoints || DEFAULT_CAMERA_POLYGON);
-  const activePolygonRef = useRef<PolygonPoint[]>(polygonPoints || DEFAULT_CAMERA_POLYGON);
+  const [activePolygon, setActivePolygon] = useState<PolygonPoint[]>(polygonPoints !== undefined ? polygonPoints : DEFAULT_CAMERA_POLYGON);
+  const activePolygonRef = useRef<PolygonPoint[]>(polygonPoints !== undefined ? polygonPoints : DEFAULT_CAMERA_POLYGON);
   const [isEditingPolygon, setIsEditingPolygon] = useState(false);
   const [showPolygonZone, setShowPolygonZone] = useState(showPolygon);
   const [polygonIntrusionsCount, setPolygonIntrusionsCount] = useState(0);
 
-  // Sync activePolygonRef and state when polygonPoints prop changes
+  // Sync activePolygonRef and state when polygonPoints prop changes (supports clearing to [])
   useEffect(() => {
-    if (polygonPoints && polygonPoints.length >= 3) {
+    if (polygonPoints !== undefined) {
       setActivePolygon(polygonPoints);
       activePolygonRef.current = polygonPoints;
     }
@@ -212,6 +221,24 @@ export function LiveWebcamCCTV({
   useEffect(() => {
     activePolygonRef.current = activePolygon;
   }, [activePolygon]);
+
+  // Real-time polygon removal
+  const handleRemovePolygon = () => {
+    setActivePolygon([]);
+    activePolygonRef.current = [];
+    setIsEditingPolygon(false);
+    setPolygonIntrusionsCount(0);
+    if (onPolygonChange) onPolygonChange([]);
+  };
+
+  // Restore default polygon
+  const handleRestorePolygon = () => {
+    const pts = DEFAULT_CAMERA_POLYGON;
+    setActivePolygon(pts);
+    activePolygonRef.current = pts;
+    setShowPolygonZone(true);
+    if (onPolygonChange) onPolygonChange(pts);
+  };
 
   // Click handler to plot / edit polygon vertices on the video feed
   const handlePolygonCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -264,7 +291,7 @@ export function LiveWebcamCCTV({
     return () => clearInterval(interval);
   }, [streamActive]);
 
-  // Initialize AI models: Python YOLOv11 ML server with local face-api.js fallback
+  // Initialize AI models: Python YOLOv11 ML server with local COCO-SSD / face-api.js fallback
   useEffect(() => {
     let isMounted = true;
     async function initAI() {
@@ -274,6 +301,20 @@ export function LiveWebcamCCTV({
         await faceapi.nets.tinyFaceDetector.loadFromUri('/models').catch(() => {});
         // Also preload SSD MobileNet for full-body person detection fallback
         await faceapi.nets.ssdMobilenetv1.loadFromUri('/models').catch(() => {});
+
+        // Preload COCO-SSD in browser for edge vehicle & car detection fallback
+        try {
+          if (typeof window !== 'undefined') {
+            await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js');
+            await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js');
+            if ((window as any).cocoSsd) {
+              cocoModelRef.current = await (window as any).cocoSsd.load({ base: 'lite_mobilenet_v2' });
+            }
+          }
+        } catch (tfErr) {
+          console.warn('COCO-SSD edge model unavailable, using Python YOLO backend:', tfErr);
+        }
+
         if (isMounted) {
           setModelsReady(true);
           setModelLoadStatus('yolo_live');
@@ -496,11 +537,16 @@ export function LiveWebcamCCTV({
         const currentPolygon = activePolygonRef.current;
         if (showPolygonZone && currentPolygon && currentPolygon.length >= 3) {
           targets.forEach((t) => {
-            // Target foot/base ground position in percentage coordinates
-            const footX = ((t.x + t.w / 2) / canvas.width) * 100;
+            // Target foot/base ground position and centroid in percentage coordinates
+            const centerX = ((t.x + t.w / 2) / canvas.width) * 100;
+            const centerY = ((t.y + t.h / 2) / canvas.height) * 100;
+            const footX = centerX;
             const footY = ((t.y + t.h * 0.92) / canvas.height) * 100;
 
-            const inside = isPointInPolygon(footX, footY, currentPolygon);
+            const isVehicle = VEHICLE_CLASSES.includes(t.className);
+            const inside = isPointInPolygon(footX, footY, currentPolygon) ||
+              (isVehicle && isPointInPolygon(centerX, centerY, currentPolygon));
+
             if (inside) {
               intrudingCount++;
               t.threatScore = 99;
@@ -519,7 +565,7 @@ export function LiveWebcamCCTV({
               } else if (t.className === 'person') {
                 t.label = `🚨 RESTRICTED ZONE INTRUSION`;
               } else {
-                t.label = `🚨 UNAUTHORIZED VEHICLE IN ZONE`;
+                t.label = `🚨 UNAUTHORIZED ${t.className.toUpperCase()} IN ZONE`;
               }
             }
           });
@@ -579,52 +625,62 @@ export function LiveWebcamCCTV({
         }
 
         // Trigger decoupled background AI detection (adaptive rate)
-        // Remote frames: 350ms interval (more time for image loading)
+        // Remote frames: 250ms interval (4 inferences/sec)
         // Local video: 220ms interval (4.5 inferences/sec)
         // CRITICAL: This NEVER awaits or blocks the 60 FPS video renderLoop!
-        const detectInterval = isRemoteActive ? 350 : 220;
+        const detectInterval = isRemoteActive ? 250 : 220;
         if (now - lastDetectTime >= detectInterval && !isDetectingRef.current && modelsReady) {
           lastDetectTime = now;
-
-          // For remote frames, skip detection if image isn't loaded yet
-          // but do NOT return — continue the render loop
-          if (isRemoteActive && (!remoteImgRef.current || !remoteImgRef.current.complete || remoteImgRef.current.naturalWidth === 0)) {
-            animId = requestAnimationFrame(renderLoop);
-            return; // Skip this detection cycle but keep rendering
-          }
-
           isDetectingRef.current = true;
 
           (async () => {
             try {
-              const sourceWidth = isRemoteActive
-                ? (remoteImgRef.current?.naturalWidth || canvas.width)
-                : (videoRef.current?.videoWidth || canvas.width);
-              const sourceHeight = isRemoteActive
-                ? (remoteImgRef.current?.naturalHeight || canvas.height)
-                : (videoRef.current?.videoHeight || canvas.height);
+              let blob: Blob | null = null;
+              let targetW = 640;
+              let targetH = 360;
+              let offscreen: HTMLCanvasElement | null = null;
 
-              if (!sourceWidth || !sourceHeight) return;
-
-              // Capture offscreen snapshot for real ML server inference
-              const offscreen = document.createElement('canvas');
-              const targetW = 640;
-              const targetH = Math.round((sourceHeight / sourceWidth) * targetW) || 360;
-              offscreen.width = targetW;
-              offscreen.height = targetH;
-              const octx = offscreen.getContext('2d');
-              if (!octx) return;
-              try {
-                octx.drawImage(sourceElement, 0, 0, targetW, targetH);
-              } catch (drawErr) {
-                // Image may not be fully decoded yet (tainted canvas, etc)
-                console.warn('Frame capture skipped:', drawErr);
-                return;
+              // Priority 1: For remote mobile feeds, fetch blob directly from in-memory object URL
+              if (isRemoteActive && remoteFrameUrl) {
+                try {
+                  const blobRes = await fetch(remoteFrameUrl);
+                  if (blobRes.ok) {
+                    blob = await blobRes.blob();
+                  }
+                } catch (bErr) {
+                  console.warn('Direct blob fetch notice:', bErr);
+                }
               }
 
-              const blob = await new Promise<Blob | null>((resolve) =>
-                offscreen.toBlob(resolve, 'image/jpeg', 0.8)
-              );
+              // Priority 2: Offscreen canvas rasterization fallback for local webcam or when blob fetch is unavailable
+              if (!blob) {
+                const sourceWidth = isRemoteActive
+                  ? (remoteImgRef.current?.naturalWidth || canvas.width)
+                  : (videoRef.current?.videoWidth || canvas.width);
+                const sourceHeight = isRemoteActive
+                  ? (remoteImgRef.current?.naturalHeight || canvas.height)
+                  : (videoRef.current?.videoHeight || canvas.height);
+
+                if (sourceWidth && sourceHeight) {
+                  offscreen = document.createElement('canvas');
+                  targetW = 640;
+                  targetH = Math.round((sourceHeight / sourceWidth) * targetW) || 360;
+                  offscreen.width = targetW;
+                  offscreen.height = targetH;
+                  const octx = offscreen.getContext('2d');
+                  if (octx) {
+                    try {
+                      octx.drawImage(sourceElement, 0, 0, targetW, targetH);
+                      blob = await new Promise<Blob | null>((resolve) =>
+                        offscreen!.toBlob(resolve, 'image/jpeg', 0.8)
+                      );
+                    } catch (drawErr) {
+                      console.warn('Frame capture skipped:', drawErr);
+                    }
+                  }
+                }
+              }
+
               if (!blob) return;
 
               let data: any = null;
@@ -659,17 +715,21 @@ export function LiveWebcamCCTV({
 
               if (data && Array.isArray(data.detections)) {
                 // ── Real YOLOv11 Detections ──
-                // Scale from ML server coordinates (based on 640xH input) to canvas display size
-                const scaleX = canvas.width / (targetW || 1);
-                const scaleY = canvas.height / (targetH || 1);
+                // Scale from original ML server frame dimensions to canvas display size
+                const origW = data.frame_width || targetW || 640;
+                const origH = data.frame_height || targetH || 360;
+                const scaleX = canvas.width / (origW || 1);
+                const scaleY = canvas.height / (origH || 1);
 
                 const personDets = data.detections.filter(
                   (d: any) => String(d.class_name).toLowerCase() === 'person'
                 );
                 const pCount = personDets.length;
-                const vCount = data.detections.filter((d: any) =>
-                  VEHICLE_CLASSES.includes(String(d.class_name).toLowerCase())
-                ).length;
+                const vCount = data.vehicle_count !== undefined
+                  ? data.vehicle_count
+                  : data.detections.filter((d: any) =>
+                      VEHICLE_CLASSES.includes(String(d.class_name).toLowerCase())
+                    ).length;
                 const gatheringActive = !!(data.is_gathering || pCount >= 2);
 
                 const newTargets: DetectionTarget[] = data.detections
@@ -685,7 +745,7 @@ export function LiveWebcamCCTV({
                       : (CLASS_LABELS[cName] || cName.toUpperCase());
                     const color = gatheringActive && isPerson
                       ? '#F59E0B'
-                      : (CLASS_COLORS[cName] || '#39D98A');
+                      : (CLASS_COLORS[cName] || '#37B9FF');
 
                     return {
                       id: `TGT-${String(i + 1).padStart(2, '0')}`,
@@ -723,68 +783,119 @@ export function LiveWebcamCCTV({
                   );
                 }
               } else {
-                // ── Secondary Edge Fallback: Face-API + SSD MobileNet for person detection ──
+                // ── Secondary Edge Fallback: Browser COCO-SSD (Vehicles + People) + Face-API ──
                 try {
-                  // Use the offscreen canvas for detection (avoids cross-origin issues with blob URLs)
-                  const detectionSource = offscreen;
+                  const detectionSource: any = offscreen || canvas;
+                  const edgeW = offscreen ? offscreen.width : canvas.width;
+                  const edgeH = offscreen ? offscreen.height : canvas.height;
+                  let edgeDetections: any[] = [];
 
-                  // Try face detection with lower threshold for mobile cameras
-                  const faces = await faceapi.detectAllFaces(
-                    detectionSource,
-                    new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.2 })
-                  );
-
-                  // Also try SSD MobileNet for full-body detection (catches people facing away)
-                  let ssdFaces: faceapi.FaceDetection[] = [];
-                  try {
-                    ssdFaces = await faceapi.detectAllFaces(
-                      detectionSource,
-                      new faceapi.SsdMobilenetv1Options({ minConfidence: 0.25 })
-                    );
-                  } catch {}
-
-                  // Merge both detection sets, removing duplicates by proximity
-                  const allDetections = [...faces];
-                  for (const ssd of ssdFaces) {
-                    const isDuplicate = allDetections.some((existing) => {
-                      const dx = Math.abs(existing.box.x - ssd.box.x);
-                      const dy = Math.abs(existing.box.y - ssd.box.y);
-                      return dx < ssd.box.width * 0.5 && dy < ssd.box.height * 0.5;
-                    });
-                    if (!isDuplicate) {
-                      allDetections.push(ssd);
-                    }
+                  // 1. Try COCO-SSD for instant browser-side vehicle (car, truck, bus) and person detection
+                  if (cocoModelRef.current) {
+                    try {
+                      const predictions = await cocoModelRef.current.detect(detectionSource);
+                      if (Array.isArray(predictions) && predictions.length > 0) {
+                        edgeDetections = predictions.filter((p: any) =>
+                          ALL_DETECT_CLASSES.includes(String(p.class).toLowerCase())
+                        );
+                      }
+                    } catch {}
                   }
 
-                  // Scale from offscreen canvas (640xH) to display canvas
-                  const fScaleX = canvas.width / (offscreen.width || 1);
-                  const fScaleY = canvas.height / (offscreen.height || 1);
-                  const gatheringActive = allDetections.length >= 2;
+                  if (edgeDetections.length > 0) {
+                    const fScaleX = canvas.width / (edgeW || 1);
+                    const fScaleY = canvas.height / (edgeH || 1);
+                    const pCount = edgeDetections.filter((d: any) => String(d.class).toLowerCase() === 'person').length;
+                    const vCount = edgeDetections.filter((d: any) => VEHICLE_CLASSES.includes(String(d.class).toLowerCase())).length;
+                    const gatheringActive = pCount >= 2;
 
-                  const newTargets: DetectionTarget[] = allDetections.map((f, i) => {
-                    trackCounterRef.current++;
-                    const { x, y, width, height } = f.box;
-                    return {
-                      id: `TGT-${String(i + 1).padStart(2, '0')}`,
-                      label: gatheringActive ? 'GATHERING • PERSON' : 'PERSON',
-                      className: 'person',
-                      x: x * fScaleX,
-                      y: y * fScaleY,
-                      w: width * fScaleX,
-                      h: height * fScaleY,
-                      conf: f.score,
-                      threatScore: gatheringActive ? 85 : 65,
-                      trackId: trackCounterRef.current,
-                      color: gatheringActive ? '#F59E0B' : '#39D98A',
-                    };
-                  });
+                    const newTargets: DetectionTarget[] = edgeDetections.map((d: any, i: number) => {
+                      const [bx, by, bw, bh] = d.bbox;
+                      const cName = String(d.class).toLowerCase();
+                      const isPerson = cName === 'person';
+                      const isVehicle = VEHICLE_CLASSES.includes(cName);
+                      const label = gatheringActive && isPerson
+                        ? 'GATHERING • PERSON'
+                        : (CLASS_LABELS[cName] || cName.toUpperCase());
+                      const color = gatheringActive && isPerson
+                        ? '#F59E0B'
+                        : (CLASS_COLORS[cName] || '#37B9FF');
 
-                  cachedTargetsRef.current = newTargets;
-                  setDetectedTargetsCount(newTargets.length);
-                  setPersonCount(allDetections.length);
-                  setVehicleCount(0); // Zero fake cars!
-                  setIsGathering(gatheringActive);
-                  setModelLoadStatus('faceapi_ready');
+                      return {
+                        id: `TGT-${String(i + 1).padStart(2, '0')}`,
+                        label,
+                        className: cName,
+                        x: bx * fScaleX,
+                        y: by * fScaleY,
+                        w: bw * fScaleX,
+                        h: bh * fScaleY,
+                        conf: d.score,
+                        threatScore: gatheringActive ? 85 : (isPerson ? (hasIntrusion ? 95 : 65) : 55),
+                        trackId: i + 1,
+                        color,
+                      };
+                    });
+
+                    cachedTargetsRef.current = newTargets;
+                    setDetectedTargetsCount(newTargets.length);
+                    setPersonCount(pCount);
+                    setVehicleCount(vCount);
+                    setIsGathering(gatheringActive);
+                    setModelLoadStatus('yolo_live');
+                  } else {
+                    // 2. Fallback to Face-API if COCO-SSD is empty
+                    const faces = await faceapi.detectAllFaces(
+                      detectionSource,
+                      new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.2 })
+                    );
+
+                    let ssdFaces: faceapi.FaceDetection[] = [];
+                    try {
+                      ssdFaces = await faceapi.detectAllFaces(
+                        detectionSource,
+                        new faceapi.SsdMobilenetv1Options({ minConfidence: 0.25 })
+                      );
+                    } catch {}
+
+                    const allDetections = [...faces];
+                    for (const ssd of ssdFaces) {
+                      const isDuplicate = allDetections.some((existing) => {
+                        const dx = Math.abs(existing.box.x - ssd.box.x);
+                        const dy = Math.abs(existing.box.y - ssd.box.y);
+                        return dx < ssd.box.width * 0.5 && dy < ssd.box.height * 0.5;
+                      });
+                      if (!isDuplicate) {
+                        allDetections.push(ssd);
+                      }
+                    }
+
+                    const fScaleX = canvas.width / (edgeW || 1);
+                    const fScaleY = canvas.height / (edgeH || 1);
+                    const gatheringActive = allDetections.length >= 2;
+
+                    const newTargets: DetectionTarget[] = allDetections.map((f, i) => {
+                      const { x, y, width, height } = f.box;
+                      return {
+                        id: `TGT-${String(i + 1).padStart(2, '0')}`,
+                        label: gatheringActive ? 'GATHERING • PERSON' : 'PERSON',
+                        className: 'person',
+                        x: x * fScaleX,
+                        y: y * fScaleY,
+                        w: width * fScaleX,
+                        h: height * fScaleY,
+                        conf: f.score,
+                        threatScore: gatheringActive ? 85 : 65,
+                        trackId: i + 1,
+                        color: gatheringActive ? '#F59E0B' : '#39D98A',
+                      };
+                    });
+
+                    cachedTargetsRef.current = newTargets;
+                    setDetectedTargetsCount(newTargets.length);
+                    setPersonCount(allDetections.length);
+                    setIsGathering(gatheringActive);
+                    setModelLoadStatus('faceapi_ready');
+                  }
                 } catch {
                   cachedTargetsRef.current = [];
                   setDetectedTargetsCount(0);
@@ -825,7 +936,6 @@ export function LiveWebcamCCTV({
           src={remoteFrameUrl}
           alt="Live Remote Mobile CCTV Stream"
           className="absolute inset-0 h-full w-full object-cover"
-          crossOrigin="anonymous"
           onLoad={() => {
             remoteImgLoadedRef.current = true;
           }}
@@ -909,7 +1019,7 @@ export function LiveWebcamCCTV({
           )}
 
           {/* Audio VU meter */}
-          <div className="hidden sm:flex items-end gap-0.5 h-3 px-1.5 bg-black/60 border border-white/10" title="Audio Stream 48kHz">
+          <div className="hidden xl:flex items-end gap-0.5 h-3 px-1.5 bg-black/60 border border-white/10" title="Audio Stream 48kHz">
             {audioMeter.map((val, idx) => (
               <div
                 key={idx}
@@ -919,7 +1029,7 @@ export function LiveWebcamCCTV({
             ))}
           </div>
 
-          <span className="text-[10px] font-mono bg-black/60 px-1.5 py-0.5 border border-white/10 text-green-400">
+          <span className="text-[10px] font-mono bg-black/60 px-1.5 py-0.5 border border-white/10 text-green-400 hidden lg:inline">
             {resolution} @ {fps}FPS
           </span>
 
@@ -1028,8 +1138,35 @@ export function LiveWebcamCCTV({
             title="Toggle Restricted Polygon Mapping / Virtual Fence"
           >
             <Shield className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">POLYGON</span>
+            <span className="hidden sm:inline">ZONE</span>
           </button>
+
+          {/* Remove / Add Polygon Button in Real Time */}
+          {activePolygon && activePolygon.length >= 3 ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRemovePolygon();
+              }}
+              className="px-2 py-1 border border-red-500/60 bg-red-600/30 hover:bg-red-600/70 text-red-200 hover:text-white transition-colors flex items-center gap-1 text-[10px] font-mono font-bold"
+              title="Remove polygon from this camera in real time"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-red-400" />
+              <span className="hidden sm:inline">REMOVE POLYGON</span>
+            </button>
+          ) : (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRestorePolygon();
+              }}
+              className="px-2 py-1 border border-[#37B9FF]/50 bg-[#37B9FF]/20 hover:bg-[#37B9FF]/50 text-[#37B9FF] hover:text-white transition-colors flex items-center gap-1 text-[10px] font-mono font-bold"
+              title="Add / Restore restricted polygon zone"
+            >
+              <Shield className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">+ ADD POLYGON</span>
+            </button>
+          )}
 
           {/* Edit Polygon Button */}
           <button
@@ -1065,6 +1202,67 @@ export function LiveWebcamCCTV({
           )}
         </div>
       </div>
+
+      {/* ──── Prominent Real-Time Polygon Management Floating Banner ──── */}
+      {showPolygonZone && (
+        <div className="absolute top-11 left-3 z-30 pointer-events-auto flex items-center gap-1.5 animate-fade-in">
+          {activePolygon && activePolygon.length >= 3 ? (
+            <div className="flex items-center bg-[#070D12]/95 border border-[#37B9FF]/70 backdrop-blur-md shadow-2xl">
+              <div
+                className={`px-2.5 py-1 text-[10px] font-mono font-bold flex items-center gap-1.5 ${
+                  polygonIntrusionsCount > 0
+                    ? 'bg-red-950/80 text-red-300 border-r border-red-500/50'
+                    : 'bg-[#37B9FF]/20 text-[#37B9FF] border-r border-[#37B9FF]/40'
+                }`}
+              >
+                <Shield className="w-3 h-3 text-[#37B9FF]" />
+                <span>RESTRICTED ZONE ({activePolygon.length} PTS)</span>
+              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRemovePolygon();
+                }}
+                className="px-2.5 py-1 text-[10px] font-mono font-bold bg-red-600/40 hover:bg-red-600/80 text-red-200 hover:text-white transition-all flex items-center gap-1 border-r border-white/10 active:scale-95 cursor-pointer"
+                title="Remove polygon in real time"
+              >
+                <Trash2 className="w-3 h-3 text-red-400" />
+                <span>REMOVE POLYGON</span>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsEditingPolygon(!isEditingPolygon);
+                }}
+                className={`px-2 py-1 text-[10px] font-mono font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  isEditingPolygon
+                    ? 'bg-[#F4C95D]/40 text-[#F4C95D]'
+                    : 'bg-white/5 hover:bg-white/20 text-white/80 hover:text-white'
+                }`}
+                title="Edit polygon boundary coordinates"
+              >
+                <PenTool className="w-3 h-3" />
+                <span>{isEditingPolygon ? 'DONE' : 'EDIT'}</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRestorePolygon();
+              }}
+              className="px-2.5 py-1 text-[10px] font-mono font-bold bg-[#37B9FF]/30 hover:bg-[#37B9FF]/60 border border-[#37B9FF] text-[#37B9FF] hover:text-white transition-all backdrop-blur-md shadow-lg flex items-center gap-1.5 cursor-pointer active:scale-95"
+              title="Add / Restore restricted polygon zone"
+            >
+              <Shield className="w-3 h-3" />
+              <span>+ ADD POLYGON</span>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ──── Tactical Polygon Intrusion Alert Banner ──── */}
       {showPolygonZone && polygonIntrusionsCount > 0 && (
@@ -1120,8 +1318,7 @@ export function LiveWebcamCCTV({
             </button>
             <button
               onClick={() => {
-                setActivePolygon([]);
-                activePolygonRef.current = [];
+                handleRemovePolygon();
               }}
               className="px-2 py-0.5 text-[9px] font-mono bg-red-600/20 hover:bg-red-600/40 text-red-300 border border-red-500/40"
             >

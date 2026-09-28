@@ -57,14 +57,16 @@ class YOLODetector:
 		names = result.names
 		detections: list[dict[str, Any]] = []
 		boxes = result.boxes
-		surveillance_classes = {"person", "car", "truck", "bus", "motorcycle", "bicycle"}
-		vehicle_classes = {"car", "truck", "bus", "motorcycle", "bicycle"}
+		surveillance_classes = {"person", "car", "truck", "bus", "motorcycle", "bicycle", "van", "automobile", "vehicle", "motorbike"}
+		vehicle_classes = {"car", "truck", "bus", "motorcycle", "bicycle", "van", "automobile", "vehicle", "motorbike"}
 
 		for index in range(len(boxes)):
 			class_id = int(boxes.cls[index].item())
 			raw_name = str(names.get(class_id, class_id) if isinstance(names, dict) else names[class_id]).lower()
 			if raw_name in {"human", "pedestrian", "0"} or class_id == 0:
 				class_name = "person"
+			elif raw_name in {"automobile", "auto"}:
+				class_name = "car"
 			else:
 				class_name = raw_name
 
@@ -75,8 +77,8 @@ class YOLODetector:
 				continue
 
 			conf = float(boxes.conf[index].item())
-			# Suppress false vehicle detections from indoor background objects
-			if class_name in vehicle_classes and conf < 0.55:
+			# Detection threshold for vehicles (allow reliable detection at standard confidence)
+			if class_name in vehicle_classes and conf < min(self.confidence_threshold, 0.25):
 				continue
 			# Lower threshold for person detection to catch people in
 			# low-quality mobile camera streams and at distance

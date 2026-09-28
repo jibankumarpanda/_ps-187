@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Video, Maximize2, ShieldAlert, Activity, Volume2, VolumeX } from 'lucide-react';
+import { Video, Maximize2, ShieldAlert, Activity, Volume2, VolumeX, Trash2, Shield } from 'lucide-react';
 import type { Camera } from '@/types/camera';
 
 interface DetectionOverlay {
@@ -22,6 +22,8 @@ interface VideoPlayerProps {
   detections?: DetectionOverlay[];
   showVirtualFence?: boolean;
   fencePolygon?: { x: number; y: number }[];
+  onPolygonChange?: (points: { x: number; y: number }[]) => void;
+  onRemovePolygon?: () => void;
   className?: string;
   onFullscreen?: () => void;
 }
@@ -33,6 +35,8 @@ export function VideoPlayer({
   detections = [],
   showVirtualFence = true,
   fencePolygon,
+  onPolygonChange,
+  onRemovePolygon,
   className = '',
   onFullscreen,
 }: VideoPlayerProps) {
@@ -40,6 +44,41 @@ export function VideoPlayer({
   const [isMuted, setIsMuted] = useState(true);
   const [previewFailed, setPreviewFailed] = useState(false);
   const hasBrowserPreview = Boolean(camera.previewUrl && isLive && !previewFailed);
+
+  // Default fence polygon points if none passed
+  const defaultFence = [
+    { x: 15, y: 75 },
+    { x: 85, y: 75 },
+    { x: 70, y: 35 },
+    { x: 30, y: 35 },
+  ];
+
+  const [activePolygon, setActivePolygon] = useState<{ x: number; y: number }[]>(
+    fencePolygon !== undefined ? fencePolygon : defaultFence
+  );
+  const [polygonActive, setPolygonActive] = useState<boolean>(
+    fencePolygon !== undefined ? fencePolygon.length >= 3 : showVirtualFence
+  );
+
+  useEffect(() => {
+    if (fencePolygon !== undefined) {
+      setActivePolygon(fencePolygon);
+      setPolygonActive(fencePolygon.length >= 3);
+    }
+  }, [fencePolygon]);
+
+  const handleRemovePolygon = () => {
+    setActivePolygon([]);
+    setPolygonActive(false);
+    if (onRemovePolygon) onRemovePolygon();
+    if (onPolygonChange) onPolygonChange([]);
+  };
+
+  const handleRestorePolygon = () => {
+    setActivePolygon(defaultFence);
+    setPolygonActive(true);
+    if (onPolygonChange) onPolygonChange(defaultFence);
+  };
 
   useEffect(() => {
     const updateClock = () => {
@@ -58,14 +97,6 @@ export function VideoPlayer({
     return () => clearInterval(interval);
   }, []);
 
-  // Default fence polygon points if none passed
-  const defaultFence = [
-    { x: 15, y: 75 },
-    { x: 85, y: 75 },
-    { x: 70, y: 35 },
-    { x: 30, y: 35 },
-  ];
-  const activePolygon = fencePolygon || defaultFence;
   const polyPointsString = activePolygon.map((p) => `${p.x},${p.y}`).join(' ');
 
   return (
@@ -92,7 +123,7 @@ export function VideoPlayer({
       )}
 
       {/* Virtual fence SVG overlay */}
-      {showVirtualFence && (
+      {showVirtualFence && polygonActive && activePolygon.length >= 3 && (
         <svg
           className="absolute inset-0 w-full h-full pointer-events-none z-10"
           viewBox="0 0 100 100"
@@ -171,6 +202,33 @@ export function VideoPlayer({
             </div>
           )}
           <span className="text-[10px] font-mono text-white/80">{timeString}</span>
+          {/* Real-time Remove / Add Polygon Button */}
+          {polygonActive && activePolygon.length >= 3 ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRemovePolygon();
+              }}
+              className="px-2 py-0.5 bg-red-600/30 hover:bg-red-600/70 border border-red-500/50 text-red-300 hover:text-white transition-colors flex items-center gap-1 text-[10px] font-mono font-bold"
+              title="Remove polygon from this camera in real time"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-red-400" />
+              <span className="hidden sm:inline">REMOVE POLYGON</span>
+            </button>
+          ) : (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRestorePolygon();
+              }}
+              className="px-2 py-0.5 bg-[#37B9FF]/20 hover:bg-[#37B9FF]/40 border border-[#37B9FF]/40 text-[#37B9FF] hover:text-white transition-colors flex items-center gap-1 text-[10px] font-mono font-bold"
+              title="Add polygon to this camera in real time"
+            >
+              <Shield className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">+ POLYGON</span>
+            </button>
+          )}
+
           <button
             onClick={() => setIsMuted(!isMuted)}
             className="p-1 text-white/70 hover:text-white transition-colors"
@@ -189,6 +247,45 @@ export function VideoPlayer({
           )}
         </div>
       </div>
+
+      {/* Real-time floating polygon badge & action */}
+      {showVirtualFence && (
+        <div className="absolute top-10 left-3 z-30 pointer-events-auto flex items-center gap-1.5 animate-fade-in">
+          {polygonActive && activePolygon.length >= 3 ? (
+            <div className="flex items-center bg-[#070D12]/95 border border-[#37B9FF]/60 backdrop-blur-md text-[10px] font-mono font-bold shadow-xl">
+              <span className="px-2 py-0.5 text-[#37B9FF] border-r border-[#37B9FF]/30 flex items-center gap-1">
+                <Shield className="w-3 h-3" />
+                ZONE ({activePolygon.length} PTS)
+              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRemovePolygon();
+                }}
+                className="px-2 py-0.5 bg-red-600/30 hover:bg-red-600/70 text-red-200 hover:text-white transition-colors flex items-center gap-1 cursor-pointer active:scale-95"
+                title="Remove polygon in real time"
+              >
+                <Trash2 className="w-3 h-3 text-red-400" />
+                REMOVE POLYGON
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRestorePolygon();
+              }}
+              className="px-2 py-0.5 bg-[#37B9FF]/20 hover:bg-[#37B9FF]/50 border border-[#37B9FF]/50 text-[#37B9FF] hover:text-white text-[10px] font-mono font-bold transition-all backdrop-blur-md flex items-center gap-1 cursor-pointer active:scale-95"
+              title="Add polygon"
+            >
+              <Shield className="w-3 h-3" />
+              + ADD POLYGON
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Footer Overlay (Section 24) */}
       <div className="absolute bottom-0 inset-x-0 h-9 bg-gradient-to-t from-black/90 via-black/50 to-transparent px-3 flex items-center justify-between z-30 pointer-events-none">

@@ -1,6 +1,14 @@
 .venv/
+venv/
+ml/venv/
 __pycache__/
 *.pyc
+*.pyo
+.DS_Store
+
+# Heavy weights and model caches
+.insightface/
+ml/.insightface/
 
 # Training data and dataset payloads
 ml/data/
@@ -12,4 +20,4 @@ ml/runs/
 # Chaincode build artifacts
 chaincode/ibvap-evidence-chaincode/node_modules/
 chaincode/ibvap-evidence-chaincode/dist/
-/no
+

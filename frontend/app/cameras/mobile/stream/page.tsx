@@ -1,4 +1,4 @@
-"use client";
+m\l "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
@@ -14,10 +14,15 @@ import {
   CheckCircle2,
   Shield,
   Zap,
+  User,
+  Car,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 export default function MobileStreamPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const frameIntervalRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -38,6 +43,16 @@ export default function MobileStreamPage() {
   const [unitId, setUnitId] = useState<string>('CAM_MOB_01');
   const [unitName, setUnitName] = useState<string>('Mobile Patrol Alpha');
   const isEncodingRef = useRef(false);
+
+  // ──── Real-Time AI Detection State on Mobile ────
+  const detectionsRef = useRef<Array<any>>([]);
+  const origDimsRef = useRef<{ w: number; h: number }>({ w: 640, h: 360 });
+  const isDetectingRef = useRef(false);
+  const [personCount, setPersonCount] = useState(0);
+  const [vehicleCount, setVehicleCount] = useState(0);
+  const [showAiOverlay, setShowAiOverlay] = useState(true);
+  const [isGathering, setIsGathering] = useState(false);
+  const [aiStatus, setAiStatus] = useState<'standby' | 'active'>('active');
 
   // Initialize Unit ID and Name from URL or storage
   useEffect(() => {
@@ -246,9 +261,9 @@ export default function MobileStreamPage() {
 
     // Frame capture & stream loop: Dynamic according to speedMode
     const config = {
-      ultra: { width: 480, height: 270, quality: 0.42, interval: 32 }, // ~31 FPS, sub-50ms latency
-      balanced: { width: 640, height: 360, quality: 0.50, interval: 38 }, // ~26 FPS
-      hd: { width: 854, height: 480, quality: 0.65, interval: 50 }, // ~20 FPS
+      ultra: { width: 640, height: 360, quality: 0.72, interval: 33 }, // ~30 FPS, native 640x360 YOLO input
+      balanced: { width: 854, height: 480, quality: 0.78, interval: 40 }, // ~25 FPS
+      hd: { width: 1280, height: 720, quality: 0.85, interval: 50 }, // ~20 FPS
     }[speedMode];
 
     const canvas = document.createElement('canvas');
@@ -306,6 +321,255 @@ export default function MobileStreamPage() {
     };
   }, [streamActive, resolution, facingMode, batteryLevel, speedMode, unitId, unitName]);
 
+  // ──── Decoupled Real-Time AI Inference Loop on Mobile ────
+  useEffect(() => {
+    if (!streamActive) return;
+
+    let isMounted = true;
+    const offscreen = document.createElement('canvas');
+    const offCtx = offscreen.getContext('2d', { alpha: false });
+
+    const detectInterval = setInterval(async () => {
+      const video = videoRef.current;
+      if (!video || video.readyState < 2 || !offCtx) return;
+      if (isDetectingRef.current) return;
+
+      isDetectingRef.current = true;
+      try {
+        const vW = video.videoWidth || 1280;
+        const vH = video.videoHeight || 720;
+        const targetW = 640;
+        const targetH = Math.round((vH / vW) * targetW) || 360;
+
+        offscreen.width = targetW;
+        offscreen.height = targetH;
+        offCtx.drawImage(video, 0, 0, targetW, targetH);
+
+        const blob = await new Promise<Blob | null>((resolve) =>
+          offscreen.toBlob(resolve, 'image/jpeg', 0.75)
+        );
+        if (!blob || !isMounted) return;
+
+        const formData = new FormData();
+        formData.append('file', blob, 'frame.jpg');
+
+        const res = await fetch(`/api/ml/analyze-frame?camera_id=${encodeURIComponent(unitId)}`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (res.ok && isMounted) {
+          const data = await res.json();
+          if (data && Array.isArray(data.detections)) {
+            const vehicleClasses = new Set(['car', 'truck', 'bus', 'motorcycle', 'motorbike', 'bicycle', 'van', 'automobile', 'vehicle']);
+            const personDets = data.detections.filter(
+              (d: any) => String(d.class_name).toLowerCase() === 'person'
+            );
+            const vehicleDets = data.detections.filter(
+              (d: any) => vehicleClasses.has(String(d.class_name).toLowerCase())
+            );
+
+            const pCount = personDets.length;
+            const vCount = data.vehicle_count !== undefined ? data.vehicle_count : vehicleDets.length;
+            const gathering = !!(data.is_gathering || pCount >= 2);
+
+            const validTargets = data.detections.filter((d: any) => {
+              const c = String(d.class_name).toLowerCase();
+              return c === 'person' || vehicleClasses.has(c);
+            });
+
+            // Haptic feedback when a target is first detected
+            if (validTargets.length > 0 && detectionsRef.current.length === 0) {
+              try {
+                if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                  navigator.vibrate(80);
+                }
+              } catch {}
+            }
+
+            origDimsRef.current = {
+              w: data.frame_width || targetW,
+              h: data.frame_height || targetH,
+            };
+            detectionsRef.current = validTargets;
+            setPersonCount(pCount);
+            setVehicleCount(vCount);
+            setIsGathering(gathering);
+            setAiStatus('active');
+
+            // Send detection telemetry over WebSocket
+            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+              wsRef.current.send(
+                JSON.stringify({
+                  type: 'telemetry',
+                  deviceId: unitId,
+                  detections: {
+                    personCount: pCount,
+                    vehicleCount: vCount,
+                    total: validTargets.length,
+                    isGathering: gathering,
+                  },
+                })
+              );
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Mobile AI detection cycle notice:', err);
+      } finally {
+        isDetectingRef.current = false;
+      }
+    }, 220);
+
+    return () => {
+      isMounted = false;
+      clearInterval(detectInterval);
+    };
+  }, [streamActive, unitId]);
+
+  // ──── 60 FPS Tactical HUD Render Loop on Mobile Screen ────
+  useEffect(() => {
+    if (!streamActive) return;
+
+    let animId: number;
+
+    const render = () => {
+      animId = requestAnimationFrame(render);
+      const canvas = canvasRef.current;
+      const video = videoRef.current;
+      if (!canvas || !video || video.readyState < 2) return;
+
+      if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+      }
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (!showAiOverlay) return;
+
+      const vW = video.videoWidth || 1280;
+      const vH = video.videoHeight || 720;
+      const cW = canvas.width;
+      const cH = canvas.height;
+
+      // Exact object-cover alignment
+      const scale = Math.max(cW / vW, cH / vH);
+      const offsetX = (cW - vW * scale) / 2;
+      const offsetY = (cH - vH * scale) / 2;
+
+      const origW = origDimsRef.current.w || 640;
+      const origH = origDimsRef.current.h || 360;
+
+      const targets = detectionsRef.current;
+      const vehicleClasses = new Set(['car', 'truck', 'bus', 'motorcycle', 'motorbike', 'bicycle', 'van', 'automobile', 'vehicle']);
+
+      targets.forEach((tgt, index) => {
+        const [bx1, by1, bx2, by2] = tgt.bbox;
+        const normX1 = bx1 / origW;
+        const normY1 = by1 / origH;
+        const normX2 = bx2 / origW;
+        const normY2 = by2 / origH;
+
+        const x = normX1 * vW * scale + offsetX;
+        const y = normY1 * vH * scale + offsetY;
+        const w = (normX2 - normX1) * vW * scale;
+        const h = (normY2 - normY1) * vH * scale;
+
+        const cName = String(tgt.class_name).toLowerCase();
+        const isPerson = cName === 'person';
+        const confPercent = Math.round((tgt.confidence || 0.85) * 100);
+
+        let color = '#37B9FF'; // Vibrant cyan for vehicles/cars
+        let label = `VEHICLE • ${confPercent}%`;
+        if (isPerson) {
+          color = isGathering ? '#F59E0B' : '#39D98A'; // Amber if gathering, else green
+          label = isGathering ? `GATHERING • ${confPercent}%` : `PERSON • ${confPercent}%`;
+        } else if (cName === 'car') {
+          label = `CAR • ${confPercent}%`;
+        } else if (cName === 'truck') {
+          label = `TRUCK • ${confPercent}%`;
+        } else if (cName === 'bus') {
+          label = `BUS • ${confPercent}%`;
+        } else if (cName === 'motorcycle' || cName === 'motorbike') {
+          label = `MOTORCYCLE • ${confPercent}%`;
+        }
+
+        // Bounding box fill
+        ctx.fillStyle = isPerson
+          ? 'rgba(57, 217, 138, 0.12)'
+          : 'rgba(55, 185, 255, 0.12)';
+        ctx.fillRect(x, y, w, h);
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(x, y, w, h);
+
+        // Tactical corner brackets
+        const cLen = Math.min(16, w * 0.25, h * 0.25);
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = color;
+
+        // Top-left
+        ctx.beginPath();
+        ctx.moveTo(x, y + cLen);
+        ctx.lineTo(x, y);
+        ctx.lineTo(x + cLen, y);
+        ctx.stroke();
+
+        // Top-right
+        ctx.beginPath();
+        ctx.moveTo(x + w - cLen, y);
+        ctx.lineTo(x + w, y);
+        ctx.lineTo(x + w, y + cLen);
+        ctx.stroke();
+
+        // Bottom-left
+        ctx.beginPath();
+        ctx.moveTo(x, y + h - cLen);
+        ctx.lineTo(x, y + h);
+        ctx.lineTo(x + cLen, y + h);
+        ctx.stroke();
+
+        // Bottom-right
+        ctx.beginPath();
+        ctx.moveTo(x + w - cLen, y + h);
+        ctx.lineTo(x + w, y + h);
+        ctx.lineTo(x + w, y + h - cLen);
+        ctx.stroke();
+
+        // Center reticle dot
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x + w / 2, y + h / 2, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Top label badge
+        ctx.font = 'bold 11px monospace';
+        const textW = ctx.measureText(label).width;
+        ctx.fillStyle = color;
+        ctx.fillRect(x, Math.max(0, y - 18), textW + 8, 18);
+        ctx.fillStyle = '#05080B';
+        ctx.fillText(label, x + 4, Math.max(13, y - 5));
+
+        // Bottom target ID
+        const subId = `TGT-${String(index + 1).padStart(2, '0')}`;
+        ctx.font = '9px monospace';
+        const subW = ctx.measureText(subId).width;
+        ctx.fillStyle = 'rgba(5, 8, 11, 0.85)';
+        ctx.fillRect(x, y + h, subW + 6, 14);
+        ctx.fillStyle = color;
+        ctx.fillText(subId, x + 3, y + h + 10);
+      });
+    };
+
+    animId = requestAnimationFrame(render);
+    return () => cancelAnimationFrame(animId);
+  }, [streamActive, showAiOverlay, isGathering]);
+
   // Flip Camera
   const switchCamera = () => {
     setFacingMode((prev) => (prev === 'user' ? 'environment' : 'user'));
@@ -349,6 +613,12 @@ export default function MobileStreamPage() {
         playsInline
         muted
         autoPlay
+      />
+
+      {/* Real-time AI HUD Overlay Canvas */}
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 w-full h-full pointer-events-none z-20"
       />
 
       {/* Cyberpunk Scanlines */}
@@ -407,11 +677,41 @@ export default function MobileStreamPage() {
               {unitId}
             </span>
             <span className="text-[10px] font-mono text-accent hidden sm:inline">
-              // {unitName}
+              {'//'} {unitName}
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap justify-end">
+            {/* Real-time Detection class counts on phone screen */}
+            <div className="flex items-center gap-1.5 bg-black/60 border border-white/10 px-2 py-0.5">
+              <span className="text-[10px] font-mono text-[#39D98A] font-bold flex items-center gap-1" title="Humans Detected">
+                <User className="w-3 h-3" />
+                {personCount}
+              </span>
+              <span className="text-white/30">•</span>
+              <span className="text-[10px] font-mono text-[#37B9FF] font-bold flex items-center gap-1" title="Vehicles Detected">
+                <Car className="w-3 h-3" />
+                {vehicleCount}
+              </span>
+            </div>
+
+            {/* Toggle AI HUD */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowAiOverlay((prev) => !prev);
+              }}
+              className={`text-[10px] font-mono px-2 py-0.5 border font-bold flex items-center gap-1 transition-all ${
+                showAiOverlay
+                  ? 'bg-[#37B9FF]/25 text-[#37B9FF] border-[#37B9FF]'
+                  : 'bg-black/60 text-muted-foreground border-white/10'
+              }`}
+              title="Toggle AI HUD detection boxes"
+            >
+              {showAiOverlay ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+              <span className="hidden sm:inline">AI HUD</span>
+            </button>
+
             {/* Unit ID Selector */}
             <div className="bg-black/60 border border-accent/40 px-1.5 py-0.5 flex items-center gap-1">
               <span className="text-[9px] font-mono text-muted-foreground uppercase">NODE:</span>
@@ -459,7 +759,7 @@ export default function MobileStreamPage() {
               title="Tap to change streaming speed/quality"
             >
               <Zap className="w-3 h-3" />
-              {speedMode === 'ultra' ? '⚡ ULTRA FAST' : speedMode === 'balanced' ? 'BALANCED' : 'HD'}
+              {speedMode === 'ultra' ? '⚡ ULTRA' : speedMode === 'balanced' ? 'BALANCED' : 'HD'}
             </button>
             <span className="text-[10px] font-mono bg-black/60 px-2 py-0.5 border border-white/10 text-accent font-bold">
               {fps} FPS

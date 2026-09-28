@@ -1,7 +1,13 @@
 .venv/
+venv/
 __pycache__/
 *.pyc
+*.pyo
+.DS_Store
 
-# Large dataset payloads and training data (prevent pushing to git)
+# Heavy weights and model caches
+.insightface/
+
+# Large dataset payloads and training data
 data/
 runs/
