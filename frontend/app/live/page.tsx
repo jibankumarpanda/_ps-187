@@ -143,6 +143,24 @@ export default function LiveSurveillancePage() {
 
   // ──── Camera Polygon Mappings (Virtual Fences for Suspicious Activity) ────
   const [cameraPolygons, setCameraPolygons] = useState<Record<string, PolygonPoint[]>>({
+    CAM_01: [
+      { x: 15, y: 75 },
+      { x: 85, y: 75 },
+      { x: 70, y: 35 },
+      { x: 30, y: 35 },
+    ],
+    CAM_02: [
+      { x: 15, y: 75 },
+      { x: 85, y: 75 },
+      { x: 70, y: 35 },
+      { x: 30, y: 35 },
+    ],
+    CAM_03: [
+      { x: 15, y: 75 },
+      { x: 85, y: 75 },
+      { x: 70, y: 35 },
+      { x: 30, y: 35 },
+    ],
     CAM_04: [
       { x: 15, y: 35 },
       { x: 85, y: 35 },
@@ -1150,6 +1168,13 @@ export default function LiveSurveillancePage() {
                   camera={cam}
                   isLive={cam.status === 'ONLINE'}
                   hasIntrusion={hasIntrusion}
+                  fencePolygon={cameraPolygons[cam.id]}
+                  onRemovePolygon={() =>
+                    setCameraPolygons((prev) => ({ ...prev, [cam.id]: [] }))
+                  }
+                  onPolygonChange={(pts) =>
+                    setCameraPolygons((prev) => ({ ...prev, [cam.id]: pts }))
+                  }
                   className="w-full shadow-lg"
                 />
               </div>
@@ -1172,7 +1197,7 @@ export default function LiveSurveillancePage() {
                 cameraName="Laptop Command Center Webcam"
                 location="Command Center HQ • Station 01"
                 preferredDeviceId={laptopDeviceId}
-                polygonPoints={cameraPolygons['CAM_04'] || DEFAULT_CAMERA_POLYGON}
+                polygonPoints={cameraPolygons['CAM_04']}
                 onPolygonChange={(pts) =>
                   setCameraPolygons((prev) => ({ ...prev, CAM_04: pts }))
                 }
@@ -1207,7 +1232,7 @@ export default function LiveSurveillancePage() {
                 remoteFrameUrl={node.frameUrl}
                 remoteDeviceName={node.name}
                 batteryLevel={node.battery}
-                polygonPoints={cameraPolygons[node.id] || DEFAULT_CAMERA_POLYGON}
+                polygonPoints={cameraPolygons[node.id]}
                 onPolygonChange={(pts) =>
                   setCameraPolygons((prev) => ({ ...prev, [node.id]: pts }))
                 }
@@ -1241,7 +1266,7 @@ export default function LiveSurveillancePage() {
                   cameraName={slot.name}
                   location={slot.location}
                   preferredDeviceId={slot.deviceId}
-                  polygonPoints={cameraPolygons[slot.cameraCode] || DEFAULT_CAMERA_POLYGON}
+                  polygonPoints={cameraPolygons[slot.cameraCode]}
                   onPolygonChange={(pts) =>
                     setCameraPolygons((prev) => ({ ...prev, [slot.cameraCode]: pts }))
                   }
